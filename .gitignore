@@ -16,6 +16,9 @@ admin/dist/
 .vscode/
 .idea/
 
+# Mini Program
+miniprogram/project.private.config.json
+
 # OS
 .DS_Store
 Thumbs.db
