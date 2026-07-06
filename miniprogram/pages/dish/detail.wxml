@@ -1,0 +1,72 @@
+<view class="container">
+  <skeleton wx:if="{{loading}}" count="2" />
+
+  <block wx:elif="{{dish}}">
+    <!-- 菜品主信息 -->
+    <view class="card">
+      <view class="flex-between">
+        <view style="flex:1">
+          <text class="text-xl text-bold">{{dish.name}}</text>
+          <view class="flex-row" style="margin-top:6px; gap:6px">
+            <text wx:if="{{dish.category}}" class="tag tag-info">{{dish.category}}</text>
+            <text wx:if="{{dish.is_recommended}}" class="tag tag-warning">推荐</text>
+            <text wx:if="{{!dish.is_available}}" class="tag tag-info">已下架</text>
+          </view>
+        </view>
+        <view class="fav-btn {{isFav ? 'fav-active' : ''}}" bindtap="onToggleFavorite">
+          <text style="font-size:22px">{{isFav ? '❤' : '🤍'}}</text>
+        </view>
+      </view>
+
+      <view style="margin-top:12px">
+        <text class="text-price" style="font-size:28px">¥{{dish.price}}</text>
+        <text class="text-muted"> /{{dish.unit}}</text>
+      </view>
+
+      <view class="source-card" bindtap="onTapWindow" hover-class="card-hover">
+        <view class="flex-between">
+          <view><text class="text-sm text-muted">{{dish.canteen_name}}</text><text style="margin:0 4px">›</text><text class="text-bold">{{dish.window_name}}</text></view>
+          <text class="text-muted text-sm">查看窗口 ›</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 营养成分 -->
+    <view class="card" wx:if="{{nutrition && (nutrition.calories || nutrition.protein)}}">
+      <view class="section-header">
+        <text class="text-bold">营养成分 (每{{dish.unit}})</text>
+        <text class="text-xs text-muted">*AI估算，仅供参考</text>
+      </view>
+      <view class="nutrition-grid">
+        <view class="nutri-item"><text class="nutri-val text-warning">{{nutrition.calories || '-'}}</text><text class="nutri-label">热量(kcal)</text></view>
+        <view class="nutri-item"><text class="nutri-val text-danger">{{nutrition.protein || '-'}}g</text><text class="nutri-label">蛋白质</text></view>
+        <view class="nutri-item"><text class="nutri-val text-warning">{{nutrition.fat || '-'}}g</text><text class="nutri-label">脂肪</text></view>
+        <view class="nutri-item"><text class="nutri-val text-primary">{{nutrition.carbs || '-'}}g</text><text class="nutri-label">碳水</text></view>
+      </view>
+    </view>
+
+    <!-- 操作 -->
+    <view class="flex-row" style="gap:10px; margin-bottom:14px">
+      <button type="primary" size="mini" bindtap="onWriteReview" style="background:#6B2F8B; flex:1">写评价</button>
+      <button size="mini" bindtap="onAddToNutrition" class="outline-btn" style="flex:1">加入营养分析</button>
+    </view>
+
+    <!-- 评价 -->
+    <view wx:if="{{reviews.length > 0}}">
+      <text class="text-bold" style="margin-bottom:8px; display:block">最新评价</text>
+      <view wx:for="{{reviews}}" wx:key="id" class="card review-card">
+        <view class="flex-between">
+          <view class="flex-row" style="gap:8px">
+            <view class="avatar-sm">{{item.user_nickname ? item.user_nickname[0] : '同'}}</view>
+            <text class="text-sm">{{item.user_nickname || '同学'}}</text>
+          </view>
+          <view class="stars">
+            <text wx:for="{{[1,2,3,4,5]}}" wx:key="*this" class="star {{index < item.rating ? 'active' : ''}}">★</text>
+          </view>
+        </view>
+        <view wx:if="{{item.content}}" style="margin-top:6px" class="text-md">{{item.content}}</view>
+        <view style="margin-top:4px"><text wx:for="{{item.tags}}" wx:key="*this" class="tag tag-primary">{{item}}</text></view>
+      </view>
+    </view>
+  </block>
+</view>

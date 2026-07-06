@@ -1,0 +1,94 @@
+<view class="container">
+  <skeleton wx:if="{{loading}}" count="3" />
+
+  <block wx:elif="{{window}}">
+    <!-- 窗口信息卡 -->
+    <view class="card info-card">
+      <view class="flex-between">
+        <view style="flex:1">
+          <text class="text-xl text-bold">{{window.name}}</text>
+          <view class="text-sm text-muted" style="margin-top:4px">
+            {{window.canteen_name}} {{window.window_number ? window.window_number+'号' : ''}}
+          </view>
+        </view>
+        <view class="fav-btn {{isFav ? 'fav-active' : ''}}" bindtap="onToggleFavorite">
+          <text style="font-size:22px">{{isFav ? '❤' : '🤍'}}</text>
+        </view>
+      </view>
+
+      <view class="flex-row" style="margin-top:10px; gap:16px">
+        <view class="flex-row">
+          <text style="color:#F7BA2A; font-size:18px">★</text>
+          <text class="text-xl text-bold">{{window.avg_rating || '-'}}</text>
+        </view>
+        <text class="text-sm text-muted">{{window.rating_count}}条评价</text>
+        <text class="text-sm text-muted">{{dishes.length}}个菜品</text>
+      </view>
+
+      <view style="margin-top:10px">
+        <text wx:for="{{window.payment_methods}}" wx:key="*this"
+          class="payment-tag payment-{{item==='wechat'?'wechat':item==='alipay'?'alipay':'card'}}">
+          {{item==='campus_card'?'校园卡':item==='wechat'?'微信':'支付宝'}}
+        </text>
+      </view>
+    </view>
+
+    <!-- Tabs -->
+    <view class="tabs">
+      <view class="tab-item {{activeTab==='dishes'?'active':''}}" bindtap="onSwitchTab" data-tab="dishes">菜品</view>
+      <view class="tab-item {{activeTab==='reviews'?'active':''}}" bindtap="onSwitchTab" data-tab="reviews">评价</view>
+    </view>
+
+    <!-- 菜品列表 -->
+    <view wx:if="{{activeTab==='dishes'}}">
+      <view wx:if="{{dishes.length > 0}}">
+        <view wx:for="{{dishes}}" wx:key="id" class="card dish-card" bindtap="onTapDish" data-id="{{item.id}}" hover-class="card-hover">
+          <view class="flex-row" style="gap:10px">
+            <view class="dish-thumb dish-color{{index%6}}">
+              <text class="dish-thumb-text">{{item.name[0]}}</text>
+            </view>
+            <view style="flex:1; overflow:hidden">
+              <view class="flex-between">
+                <text class="text-md text-bold">{{item.name}}</text>
+                <view><text class="text-price text-lg">¥{{item.price}}</text><text class="text-sm text-muted">/{{item.unit}}</text></view>
+              </view>
+              <view style="margin-top:4px">
+                <text wx:if="{{item.category}}" class="tag tag-default">{{item.category}}</text>
+                <text wx:if="{{item.is_recommended}}" class="tag tag-warning">推荐</text>
+                <text wx:if="{{!item.is_available}}" class="tag tag-info">已下架</text>
+              </view>
+            </view>
+          </view>
+        </view>
+      </view>
+      <view wx:else class="empty-state"><text>暂无菜品</text></view>
+    </view>
+
+    <!-- 评价列表 -->
+    <view wx:if="{{activeTab==='reviews'}}">
+      <button type="primary" size="mini" bindtap="onWriteReview" style="margin-bottom:12px; background:#6B2F8B">写评价</button>
+      <view wx:if="{{reviews.length > 0}}">
+        <view wx:for="{{reviews}}" wx:key="id" class="card review-card">
+          <view class="flex-between">
+            <view class="flex-row" style="gap:8px">
+              <view class="avatar-sm">{{item.user_nickname ? item.user_nickname[0] : '同'}}</view>
+              <text class="text-sm">{{item.user_nickname || '同学'}}</text>
+            </view>
+            <view class="stars">
+              <text wx:for="{{[1,2,3,4,5]}}" wx:key="*this" class="star {{index < item.rating ? 'active' : ''}}">★</text>
+            </view>
+          </view>
+          <view wx:if="{{item.content}}" style="margin-top:8px" class="text-md">{{item.content}}</view>
+          <view style="margin-top:6px">
+            <text wx:for="{{item.tags}}" wx:key="*this" class="tag tag-primary">{{item}}</text>
+          </view>
+          <view class="flex-between" style="margin-top:8px">
+            <text class="text-xs text-muted">{{item.created_at}}</text>
+            <text class="text-xs text-muted">{{item.like_count}}赞</text>
+          </view>
+        </view>
+      </view>
+      <view wx:else class="empty-state"><text>暂无评价</text></view>
+    </view>
+  </block>
+</view>

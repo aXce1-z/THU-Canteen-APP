@@ -1,0 +1,48 @@
+{
+  "pages": [
+    "pages/index/index",
+    "pages/canteen/detail",
+    "pages/window/detail",
+    "pages/search/index",
+    "pages/dish/detail",
+    "pages/nutrition/index",
+    "pages/review/create",
+    "pages/user/index"
+  ],
+  "window": {
+    "backgroundTextStyle": "light",
+    "navigationBarBackgroundColor": "#6B2F8B",
+    "navigationBarTitleText": "清华食堂",
+    "navigationBarTextStyle": "white",
+    "backgroundColor": "#f5f5f5"
+  },
+  "tabBar": {
+    "color": "#999",
+    "selectedColor": "#6B2F8B",
+    "backgroundColor": "#fff",
+    "borderStyle": "black",
+    "list": [
+      {
+        "pagePath": "pages/index/index",
+        "text": "首页"
+      },
+      {
+        "pagePath": "pages/search/index",
+        "text": "搜索"
+      },
+      {
+        "pagePath": "pages/nutrition/index",
+        "text": "营养"
+      },
+      {
+        "pagePath": "pages/user/index",
+        "text": "我的"
+      }
+    ]
+  },
+  "usingComponents": {
+    "skeleton": "/components/skeleton/skeleton"
+  },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json"
+}

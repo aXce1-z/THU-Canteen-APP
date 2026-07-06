@@ -1,0 +1,69 @@
+<view class="container">
+  <!-- 已选菜品 -->
+  <view class="card">
+    <view class="flex-between" style="margin-bottom: 12px">
+      <text class="text-bold">🍽️ 我的餐盘</text>
+      <text class="text-sm text-muted" bindtap="onClearAll" wx:if="{{selectedDishes.length > 0}}">清空</text>
+    </view>
+
+    <view wx:if="{{selectedDishes.length > 0}}">
+      <view wx:for="{{selectedDishes}}" wx:key="id" class="flex-between" style="padding: 8px 0; border-bottom: 1px solid #f5f5f5">
+        <view>
+          <text>{{item.name}}</text>
+          <text class="text-sm text-muted"> ¥{{item.price}}</text>
+        </view>
+        <text bindtap="onRemoveDish" data-index="{{index}}" style="color: #F56C6C">✕</text>
+      </view>
+      <button type="primary" bindtap="onAnalyze" loading="{{analyzing}}" style="margin-top: 12px; background: var(--primary)">
+        📊 分析营养成分
+      </button>
+    </view>
+
+    <view wx:else class="empty-state" style="padding: 30px">
+      <text class="icon">🍲</text>
+      <text>还没有添加菜品</text>
+      <text class="text-sm text-muted">在菜品详情页点击"分析营养"即可添加</text>
+    </view>
+  </view>
+
+  <!-- 分析结果 -->
+  <view wx:if="{{nutritionResult}}" class="card" style="margin-top: 16px">
+    <text class="text-bold" style="margin-bottom: 12px; display: block">📊 营养汇总</text>
+
+    <!-- 总热量 -->
+    <view style="text-align: center; padding: 16px 0">
+      <text style="font-size: 36px; font-weight: 700; color: #E6A23C">{{nutritionResult.calories || 0}}</text>
+      <text class="text-muted"> kcal</text>
+      <view class="text-xs text-muted" style="margin-top: 4px">
+        约占每日推荐 {{getPercent(nutritionResult.calories, dailyReference.calories)}}%
+      </view>
+    </view>
+
+    <!-- 营养条 -->
+    <view class="nutrition-bar" wx:for="{{[
+      {name: '蛋白质', value: nutritionResult.protein, ref: dailyReference.protein, unit: 'g', color: '#F56C6C'},
+      {name: '脂肪', value: nutritionResult.fat, ref: dailyReference.fat, unit: 'g', color: '#E6A23C'},
+      {name: '碳水', value: nutritionResult.carbs, ref: dailyReference.carbs, unit: 'g', color: '#6B2F8B'},
+      {name: '纤维', value: nutritionResult.fiber, ref: dailyReference.fiber, unit: 'g', color: '#67C23A'},
+      {name: '钠', value: nutritionResult.sodium, ref: dailyReference.sodium, unit: 'mg', color: '#409EFF'}
+    ]}}" wx:key="name">
+      <view class="flex-between" style="margin-bottom: 2px">
+        <text class="text-sm">{{item.name}}</text>
+        <text class="text-sm">{{item.value || 0}}{{item.unit}}</text>
+      </view>
+      <view class="bar-bg">
+        <view class="bar-fill" style="width: {{getPercent(item.value, item.ref)}}%; background: {{item.color}}"></view>
+      </view>
+    </view>
+
+    <!-- AI 建议 -->
+    <view class="advice-box" style="margin-top: 16px" wx:if="{{getAdvice()}}">
+      <text class="text-sm">💡 {{getAdvice()}}</text>
+    </view>
+  </view>
+
+  <!-- 提示 -->
+  <view class="text-xs text-muted" style="text-align: center; margin-top: 20px; padding: 0 20px">
+    * 营养成分数据由AI估算或同学贡献，仅供参考，不构成医学建议
+  </view>
+</view>

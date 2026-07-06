@@ -1,0 +1,27 @@
+.source-card { margin-top:10px; padding:10px 12px; background:#f8f4ff; border-radius:8px; }
+
+.fav-btn { padding: 8px; }
+.fav-btn.fav-active { animation: heartBeat 0.4s ease; }
+
+@keyframes heartBeat {
+  0% { transform: scale(1); } 25% { transform: scale(1.3); }
+  50% { transform: scale(0.9); } 100% { transform: scale(1); }
+}
+
+.nutrition-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 8px; }
+.nutri-item { text-align: center; padding: 10px; background: #f9f9f9; border-radius: 8px; }
+.nutri-val { font-size: 20px; font-weight: 700; }
+.nutri-label { font-size: 11px; color: #999; margin-top: 2px; display: block; }
+
+.section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+
+.outline-btn { background: #fff; color: #6B2F8B; border: 1px solid #6B2F8B; }
+
+.review-card { margin-bottom: 6px; }
+.avatar-sm {
+  width: 26px; height: 26px; border-radius: 50%;
+  background: linear-gradient(135deg, #6B2F8B, #9B59B6); color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 600;
+}
+.card-hover { opacity: 0.85; transform: scale(0.98); transition: 0.15s; }

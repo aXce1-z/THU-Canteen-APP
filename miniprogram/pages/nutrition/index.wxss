@@ -1,0 +1,23 @@
+.nutrition-bar {
+  margin-top: 10px;
+}
+
+.bar-bg {
+  height: 6px;
+  background: #f0f0f0;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.5s;
+}
+
+.advice-box {
+  background: #f0f8ff;
+  border-radius: 8px;
+  padding: 12px;
+  border-left: 3px solid #409EFF;
+}

@@ -1,0 +1,181 @@
+/* 全局样式 */
+page {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  font-size: 14px;
+  color: #333;
+  background-color: #f5f5f5;
+  --primary: #6B2F8B;
+  --primary-light: #9B59B6;
+  --success: #67C23A;
+  --warning: #E6A23C;
+  --danger: #F56C6C;
+  --info: #909399;
+  --border: #e4e7ed;
+  --radius: 8px;
+}
+
+/* 通用容器 */
+.container {
+  padding: 16px;
+  min-height: 100vh;
+  box-sizing: border-box;
+}
+
+/* 卡片 */
+.card {
+  background: #fff;
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-bottom: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.card:active {
+  opacity: 0.9;
+}
+
+/* Flex 布局 */
+.flex-row {
+  display: flex;
+  align-items: center;
+}
+
+.flex-between {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.flex-wrap {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+/* 文字 */
+.text-sm { font-size: 12px; }
+.text-md { font-size: 14px; }
+.text-lg { font-size: 16px; }
+.text-xl { font-size: 18px; }
+.text-bold { font-weight: 600; }
+.text-muted { color: #909399; }
+.text-primary { color: #6B2F8B; }
+.text-success { color: #67C23A; }
+.text-warning { color: #E6A23C; }
+.text-danger { color: #F56C6C; }
+.text-price { color: #E6A23C; font-weight: 600; }
+
+/* 标签 */
+.tag {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  margin-right: 4px;
+  margin-bottom: 4px;
+}
+
+.tag-primary { background: #f3e8ff; color: #6B2F8B; }
+.tag-success { background: #e8f5e9; color: #388E3C; }
+.tag-warning { background: #fff3e0; color: #F57C00; }
+.tag-info { background: #e3f2fd; color: #1976D2; }
+.tag-default { background: #f5f5f5; color: #666; }
+
+/* 星级评分 */
+.stars {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.star {
+  font-size: 14px;
+  color: #ddd;
+}
+
+.star.active {
+  color: #F7BA2A;
+}
+
+/* 搜索栏 */
+.search-bar {
+  display: flex;
+  align-items: center;
+  background: #fff;
+  border-radius: 20px;
+  padding: 8px 16px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+
+.search-bar input {
+  flex: 1;
+  border: none;
+  outline: none;
+  font-size: 14px;
+}
+
+/* 卡片按压 */
+.card-hover { opacity: 0.85; transform: scale(0.98); transition: all 0.15s ease; }
+
+/* 收藏动画 */
+@keyframes heartBeat {
+  0% { transform: scale(1); } 25% { transform: scale(1.3); }
+  50% { transform: scale(0.9); } 100% { transform: scale(1); }
+}
+.fav-btn.fav-active { animation: heartBeat 0.4s ease; }
+
+/* 菜品色块 */
+.dish-color0 { background: linear-gradient(135deg, #6B2F8B, #9B59B6); }
+.dish-color1 { background: linear-gradient(135deg, #E67E22, #F39C12); }
+.dish-color2 { background: linear-gradient(135deg, #27AE60, #2ECC71); }
+.dish-color3 { background: linear-gradient(135deg, #2980B9, #3498DB); }
+.dish-color4 { background: linear-gradient(135deg, #C0392B, #E74C3C); }
+.dish-color5 { background: linear-gradient(135deg, #16A085, #1ABC9C); }
+.dish-thumb-text { font-size: 22px; font-weight: 700; color: #fff; }
+
+/* 加载更多 */
+.load-more {
+  text-align: center;
+  padding: 20px;
+  color: #909399;
+  font-size: 13px;
+}
+
+/* 空状态 */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  color: #999;
+}
+
+.empty-state .icon {
+  font-size: 48px;
+  margin-bottom: 12px;
+}
+
+/* 支付方式标签 */
+.payment-tag {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: 10px;
+  margin-right: 4px;
+  border: 1px solid;
+}
+
+.payment-card {
+  color: #409EFF;
+  border-color: #409EFF;
+}
+
+.payment-wechat {
+  color: #67C23A;
+  border-color: #67C23A;
+}
+
+.payment-alipay {
+  color: #1677FF;
+  border-color: #1677FF;
+}

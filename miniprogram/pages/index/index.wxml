@@ -1,0 +1,83 @@
+<view class="container">
+  <!-- 搜索栏 -->
+  <view class="search-bar" style="margin-bottom: 12px">
+    <input
+      placeholder="搜索菜品、窗口..."
+      value="{{searchKeyword}}"
+      bindinput="onSearchInput"
+      bindconfirm="onSearch"
+      confirm-type="search"
+    />
+    <text style="font-size:18px" bindtap="onSearch">🔍</text>
+  </view>
+
+  <!-- 快捷筛选 -->
+  <view class="quick-filters">
+    <view class="filter-chip {{paymentFilter==='wechat'?'active':''}}" bindtap="onFilterPayment" data-method="wechat">微信支付</view>
+    <view class="filter-chip {{paymentFilter==='alipay'?'active':''}}" bindtap="onFilterPayment" data-method="alipay">支付宝</view>
+  </view>
+
+  <!-- 骨架屏 -->
+  <skeleton wx:if="{{loading}}" count="4" />
+
+  <!-- 食堂列表 -->
+  <view wx:else>
+    <view class="section">
+      <view class="section-header">
+        <text class="section-title">食堂列表</text>
+        <text class="text-muted text-sm">{{canteens.length}}个食堂</text>
+      </view>
+
+      <view
+        wx:for="{{canteens}}"
+        wx:key="id"
+        class="card canteen-card"
+        bindtap="onTapCanteen"
+        data-id="{{item.id}}"
+        data-name="{{item.name}}"
+        hover-class="card-hover"
+      >
+        <view class="canteen-row">
+          <view class="canteen-icon canteen-color{{index%8}}">🍽</view>
+          <view style="flex:1; overflow:hidden">
+            <view class="flex-between">
+              <text class="text-lg text-bold">{{item.name}}</text>
+              <text class="text-sm text-muted">{{item.window_count}}个窗口</text>
+            </view>
+            <view class="text-sm text-muted" style="margin-top:2px">
+              {{item.location || '清华大学校内'}}
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 热门菜品 -->
+    <view class="section" wx:if="{{hotDishes.length > 0}}">
+      <view class="section-header">
+        <text class="section-title">热门菜品</text>
+      </view>
+      <scroll-view scroll-x class="hot-scroll">
+        <view
+          class="hot-item"
+          wx:for="{{hotDishes}}"
+          wx:key="id"
+          bindtap="onTapDish"
+          data-id="{{item.id}}"
+          hover-class="card-hover"
+        >
+          <view class="hot-img dish-color{{index%6}}">
+            <text class="hot-img-text">{{item.name[0]}}</text>
+          </view>
+          <view class="hot-name">{{item.name}}</view>
+          <view class="text-price">¥{{item.price}}</view>
+          <view class="stars">
+            <text wx:for="{{[1,2,3,4,5]}}" wx:key="*this" class="star {{index < item.avg_rating ? 'active' : ''}}">★</text>
+            <text class="text-sm text-muted">{{item.avg_rating}}</text>
+          </view>
+          <view class="text-xs text-muted">{{item.canteen_name}}</view>
+        </view>
+      </scroll-view>
+    </view>
+  </view>
+</view>

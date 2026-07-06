@@ -1,0 +1,12 @@
+<view class="skeleton-list">
+  <view class="skeleton-card" wx:for="{{count}}" wx:key="index">
+    <view class="skeleton-row">
+      <view class="skeleton-avatar"></view>
+      <view class="skeleton-lines">
+        <view class="skeleton-line w80"></view>
+        <view class="skeleton-line w60"></view>
+        <view class="skeleton-line w40"></view>
+      </view>
+    </view>
+  </view>
+</view>

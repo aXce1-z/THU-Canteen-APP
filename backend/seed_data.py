@@ -1,0 +1,856 @@
+"""
+清华大学食堂种子数据 v2 (2024-2025年调研)
+
+运行方式:
+  cd backend && conda activate thucanteen
+  set PYTHONUTF8=1 && python seed_data.py
+
+数据来源: 清华官方公众号、新生攻略 (2024-2025)
+"""
+
+import asyncio
+import uuid
+from sqlalchemy import select, func, update
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
+from app.database import Base
+from app.models import Canteen, Window, Dish, User, Review
+from app.config import get_settings
+
+settings = get_settings()
+
+# ============================================================
+# 食堂数据
+# ============================================================
+
+CANTEENS = [
+    # ---- 学生食堂 ----
+    {"name": "紫荆园", "location": "紫荆公寓区中部（紫6与紫10之间）", "latitude": 40.0100, "longitude": 116.3245,
+     "opening_hours": {"早餐": "6:30-9:00 (仅1F)", "午餐": "11:00-13:00", "晚餐": "17:00-19:00", "清青披萨(B1)": "11:00-22:30"},
+     "description": "全校最大学生食堂。B1清青披萨全天营业，1F早餐+各地风味(东南亚/麻辣香锅/煎饼果子)，2F涮羊肉/铁板/海南鸡饭，3F东北菜/轻食/桂林米粉，4F川湘美食+炸鲜奶。2-4F无早餐。"},
+
+    {"name": "桃李园", "location": "紫荆公寓区西侧（紫1与紫4之间）", "latitude": 40.0110, "longitude": 116.3250,
+     "opening_hours": {"早餐": "6:30-9:00 (仅1F)", "午餐": "11:00-13:00", "晚餐": "17:00-19:00", "夜宵": "19:00-23:00 (仅1F)"},
+     "description": "清华唯一稳定提供夜宵的食堂！1F夜宵到23点(小龙虾/烤冷面/砂锅)，B1清青休闲11:00-22:30连续营业，2F自选餐厅近百种菜品+手工水饺，3F简约餐厅云贵菜烤鱼可点餐。"},
+
+    {"name": "清芬园", "location": "学堂路与至善路交叉口东南侧（教学区核心）", "latitude": 40.0020, "longitude": 116.3260,
+     "opening_hours": {"早餐": "6:30-9:00 (仅1F)", "午餐": "11:00-13:00", "晚餐": "17:00-19:00", "清青快餐(B1)": "10:30-22:30"},
+     "description": "人流量最大食堂。B1清青快餐(清华版KFC)10:30-22:30连续营业。1F生煎包闻名全校+重庆小面+麻辣香锅。2F北京烤鸭9元/盘+涮羊肉。3F教师餐厅。午饭高峰极拥挤，建议错峰。"},
+
+    {"name": "听涛园", "location": "学堂路与至善路交叉口西北侧（清芬园斜对面）", "latitude": 40.0022, "longitude": 116.3255,
+     "opening_hours": {"早餐": "6:30-9:00 (仅1F)", "午餐": "11:00-13:00", "晚餐": "17:00-19:00", "清青牛拉(2F)": "10:30-14:00, 16:30-22:30"},
+     "description": "面食天堂。1F陕西面食(油泼面/肉夹馍3元/个)+热干面+麻辣香锅。2F清青牛拉环境一流，红柳大串烧烤，10:30-22:30长时间营业。"},
+
+    {"name": "丁香园", "location": "紫荆公寓与南区公寓西侧交界处（蒙古包外形）", "latitude": 40.0080, "longitude": 116.3280,
+     "opening_hours": {"早餐": "6:30-9:00", "午餐": "10:40-13:00", "晚餐": "16:40-19:00"},
+     "description": "仅一层，早开晚关比别的食堂早。广式肠粉早八排队爆款，老碗鱼/排骨，骨汤冒菜，烤肉拌饭/煲仔饭，东坡肉。粤菜窗口味道极佳但需排队。"},
+
+    {"name": "观畴园", "location": "西大操场北侧（图书馆北馆北侧）", "latitude": 40.0050, "longitude": 116.3200,
+     "opening_hours": {"早餐": "6:30-8:30 (仅1F)", "午餐": "11:00-13:00", "晚餐": "17:00-19:00/20:00", "清青永和": "10:30-22:30", "清青咖啡": "10:00-22:30"},
+     "description": "又名万人食堂，容量最大。1F清青永和+清青咖啡全天营业+猪脚面/滑蛋饭/铁板饭。2F自选餐厅360度环形(虎眼丸子/松鼠草鱼/驴打滚2元)。3F点餐聚餐(烤鸭/锅包肉/烤全鱼)。B1天猫超市。"},
+
+    {"name": "芝兰园", "location": "紫荆公寓东北侧（玉树园南侧）", "latitude": 40.0120, "longitude": 116.3260,
+     "opening_hours": {"午餐": "11:00-13:00", "晚餐": "17:00-20:00"},
+     "description": "无早餐。1F伊斯兰风味(关东锅包肉/烤羊排/大盘鸡)，2F清青小火锅火爆需排队(单人锅38元/双人68元)。"},
+
+    {"name": "玉树园", "location": "紫荆公寓区（紫荆18与19号楼之间）", "latitude": 40.0125, "longitude": 116.3258,
+     "opening_hours": {"早餐": "6:40-8:30", "午餐": "11:00-13:00", "晚餐": "17:00-20:30", "夜宵": "晚间有宵夜"},
+     "description": "1F新派川菜鲁菜适合聚餐(水煮鱼/葱烧海参)，2F韩餐特色(韩式炸鸡/拌饭)+夜宵供应。"},
+
+    {"name": "荷园", "location": "荷花池畔（原一员工食堂）", "latitude": 40.0035, "longitude": 116.3220,
+     "opening_hours": {"午餐": "11:00-13:00", "晚餐": "17:00-19:00"},
+     "description": "环境优美紧邻荷塘。无早餐。1F风味小吃(东坡肉/酸菜鱼/小酥肉/面点)，2F精致自选(淮扬狮子头/锅包肉/养生煨汤)。"},
+
+    # ---- 教工食堂 ----
+    {"name": "澜园", "location": "照澜院商业区二层/三层", "latitude": 40.0010, "longitude": 116.3185,
+     "opening_hours": {"午餐": "11:00-13:00", "晚餐": "17:00-19:00"},
+     "description": "最大教工食堂。2F点菜(烤鸭/清蒸鲈鱼)，3F自选+风味小吃。校庆期间支持微信支付宝。"},
+
+    {"name": "寓园", "location": "西区家属区（原二员工食堂）", "latitude": 40.0015, "longitude": 116.3160,
+     "opening_hours": {"午餐": "11:00-13:00", "晚餐": "17:00-19:00"},
+     "description": "瓦罐汤(鸡汤/排骨汤/老鸭汤)、陕西面食(油泼面/肉夹馍)、特色小炒(回锅肉/麻婆豆腐)。"},
+
+    {"name": "南园", "location": "南楼小区（洁华幼儿园南侧）", "latitude": 39.9980, "longitude": 116.3240,
+     "opening_hours": {"午餐": "11:00-13:00", "晚餐": "17:00-19:00"},
+     "description": "1F大伙(番茄炒蛋/红烧肉)，2F点菜(老妈蹄花/陕西牛肉饼)。"},
+
+    {"name": "家园", "location": "西南小区（清华附小南侧）", "latitude": 39.9990, "longitude": 116.3170,
+     "opening_hours": {"午餐": "11:00-13:00", "晚餐": "17:00-19:00"},
+     "description": "自制熟食闻名清华：酱肘子22元、酱猪蹄18元/只、酱牛肉28元，另有基本大伙。"},
+
+    {"name": "北园", "location": "西北小区西北角", "latitude": 40.0090, "longitude": 116.3160,
+     "opening_hours": {"午餐": "11:00-13:00", "晚餐": "17:00-19:00"},
+     "description": "北方菜系：红烧鳕鱼、香酥鸡块、东北乱炖。"},
+
+    # ---- 特色餐厅/其他 ----
+    {"name": "融园", "location": "五道口金融学院院内", "latitude": 39.9960, "longitude": 116.3300,
+     "opening_hours": {"午餐": "11:00-13:00", "晚餐": "17:00-19:00"},
+     "description": "金融学院食堂。过桥米线、酸汤米线、铁板牛肉、锡纸花甲粉/金针菇。"},
+
+    {"name": "熙春园", "location": "工字厅附近", "latitude": 40.0040, "longitude": 116.3210,
+     "opening_hours": {"午餐": "11:00-14:00", "晚餐": "17:00-21:00"},
+     "description": "桌餐餐厅，适合宴请聚餐。北京烤鸭128元、葱烧海参68元、松鼠鳜鱼88元。支持微信支付宝。需提前订位。"},
+]
+
+# ============================================================
+# 窗口 & 菜品数据: (食堂名, 窗口名, 分类, 支付方式, 楼层, [(菜名, 分类, 价格, 单位), ...])
+# ============================================================
+
+# 支付方式简写: C=campus_card, W=wechat, A=alipay
+C = ["campus_card"]
+CW = ["campus_card", "wechat"]
+CWA = ["campus_card", "wechat", "alipay"]
+
+WINDOWS_AND_DISHES = [
+    # ==================== 紫荆园 ====================
+    # B1
+    ("紫荆园", "清青披萨", "西餐", CWA, "B1", [
+        ("玛格丽特披萨", "西餐", 32.0, "份"), ("黑椒牛肉焗饭", "西餐", 26.0, "份"),
+        ("番茄肉酱意面", "套餐", 18.0, "份"), ("芝士焗玉米", "小吃", 14.0, "份"),
+    ]),
+    # 1F
+    ("紫荆园", "广东风味", "粤菜", C, "1F", [
+        ("烧鸭饭", "套餐", 14.0, "份"), ("蜜汁叉烧", "粤菜", 16.0, "份"),
+        ("白切鸡", "粤菜", 12.0, "份"), ("港式奶茶", "饮品", 6.0, "杯"),
+    ]),
+    ("紫荆园", "麻辣香锅", "麻辣烫", C, "1F", [
+        ("麻辣香锅（素）", "麻辣烫", 15.0, "份"), ("麻辣香锅（荤素搭配）", "麻辣烫", 25.0, "份"),
+        ("麻辣香锅（全荤）", "麻辣烫", 33.0, "份"),
+    ]),
+    ("紫荆园", "煎饼果子窗口", "小吃", C, "1F", [
+        ("煎饼果子", "小吃", 5.5, "个"), ("煎饼果子加肉松", "小吃", 7.0, "个"),
+        ("鸡蛋灌饼", "小吃", 6.0, "个"),
+    ]),
+    ("紫荆园", "东南亚风味", "东南亚", C, "1F", [
+        ("泰式咖喱鸡饭", "套餐", 15.0, "份"), ("冬阴功米粉", "面食", 14.0, "碗"),
+        ("海南鸡饭", "套餐", 16.0, "份"),
+    ]),
+    ("紫荆园", "韩式风味", "韩餐", C, "1F", [
+        ("韩式拌饭", "套餐", 14.0, "份"), ("韩式炒年糕", "小吃", 10.0, "份"),
+        ("泡菜豆腐汤", "汤粥", 8.0, "碗"),
+    ]),
+    # 2F
+    ("紫荆园", "涮羊肉窗口", "火锅", C, "2F", [
+        ("涮羊肉（小份）", "火锅", 20.0, "份"), ("涮羊肉（大份）", "火锅", 28.0, "份"),
+        ("椰子鸡饭", "套餐", 19.8, "份"),
+    ]),
+    ("紫荆园", "铁板系列", "铁板烧", C, "2F", [
+        ("铁板牛肉", "炒菜", 18.0, "份"), ("铁板豆腐", "炒菜", 10.0, "份"),
+        ("铁板鸡排", "炒菜", 15.0, "份"),
+    ]),
+    ("紫荆园", "北京风味", "北京菜", C, "2F", [
+        ("京酱肉丝", "炒菜", 12.0, "份"), ("老北京炸酱面", "面食", 10.0, "碗"),
+        ("炒肝", "小吃", 8.0, "碗"),
+    ]),
+    # 3F
+    ("紫荆园", "健康轻食", "轻食", C, "3F", [
+        ("鸡胸肉沙拉", "轻食", 12.0, "份"), ("牛肉紫薯碗", "轻食", 16.0, "份"),
+        ("水煮牛肉（减脂版）", "轻食", 18.0, "份"),
+    ]),
+    ("紫荆园", "东北风味", "东北菜", C, "3F", [
+        ("酸菜鱼", "炒菜", 18.0, "份"), ("锅包肉", "炒菜", 14.0, "份"),
+        ("地三鲜", "炒菜", 10.0, "份"), ("东北大拉皮", "凉菜", 8.0, "份"),
+    ]),
+    ("紫荆园", "桂林米粉", "面食", C, "3F", [
+        ("桂林米粉", "面食", 12.0, "碗"), ("螺蛳粉", "面食", 13.0, "碗"),
+    ]),
+    # 4F
+    ("紫荆园", "川湘美食", "川湘菜", C, "4F", [
+        ("金钱蛋", "炒菜", 14.0, "份"), ("辣子鸡", "炒菜", 16.0, "份"),
+        ("水煮肉片", "炒菜", 18.0, "份"), ("燃面", "面食", 10.0, "碗"),
+        ("酸汤肥牛", "炒菜", 22.0, "份"),
+    ]),
+    ("紫荆园", "甜品点心", "小吃", C, "4F", [
+        ("炸鲜奶", "小吃", 8.0, "份"), ("南瓜酥", "小吃", 6.0, "份"),
+        ("桂花黄米凉糕", "小吃", 8.0, "份"), ("小吊梨汤", "饮品", 5.0, "杯"),
+    ]),
+
+    # ==================== 桃李园 ====================
+    ("桃李园", "清青休闲餐厅", "西餐", CWA, "B1", [
+        ("牛腩饭", "套餐", 22.0, "份"), ("热狗", "小吃", 12.0, "个"),
+        ("减脂餐", "轻食", 18.0, "份"), ("拿铁咖啡", "饮品", 12.0, "杯"),
+    ]),
+    ("桃李园", "夜宵窗口", "小吃", C, "1F", [
+        ("麻辣小龙虾", "小吃", 25.0, "份"), ("烤冷面", "小吃", 8.0, "份"),
+        ("火鸡面", "面食", 10.0, "碗"), ("砂锅", "汤粥", 12.0, "碗"),
+    ]),
+    ("桃李园", "番茄牛腩米线", "面食", C, "1F", [
+        ("番茄牛腩米线", "面食", 14.0, "碗"), ("酸辣粉", "面食", 10.0, "碗"),
+        ("过桥米线", "面食", 15.0, "碗"),
+    ]),
+    ("桃李园", "麻辣烫", "麻辣烫", C, "1F", [
+        ("麻辣烫（素）", "麻辣烫", 12.0, "份"), ("麻辣烫（荤素搭配）", "麻辣烫", 18.0, "份"),
+    ]),
+    ("桃李园", "自选餐厅", "自选餐", C, "2F", [
+        ("跷脚牛肉", "炒菜", 16.0, "份"), ("酱猪肘", "熟食", 15.0, "份"),
+        ("护心肉", "熟食", 14.0, "份"), ("生煎包", "小吃", 3.5, "个"),
+        ("小笼包", "小吃", 8.0, "笼"),
+    ]),
+    ("桃李园", "手工水饺", "面食", C, "2F", [
+        ("韭菜鸡蛋饺", "面食", 10.0, "份(15个)"), ("猪肉白菜饺", "面食", 12.0, "份(15个)"),
+        ("牛肉大葱饺", "面食", 14.0, "份(15个)"),
+    ]),
+    ("桃李园", "简约餐厅·云贵风味", "云南菜", CWA, "3F", [
+        ("云南过桥米线", "面食", 18.0, "碗"), ("汽锅鸡", "汤粥", 22.0, "份"),
+        ("烤鱼", "烤鱼", 38.0, "条"),
+    ]),
+
+    # ==================== 清芬园 ====================
+    ("清芬园", "清青快餐", "快餐", CWA, "B1", [
+        ("香辣鸡腿堡", "快餐", 12.0, "个"), ("薯条（大）", "小吃", 8.0, "份"),
+        ("炸鸡翅（一对）", "小吃", 7.0, "份"), ("甜筒冰淇淋", "甜品", 3.0, "个"),
+    ]),
+    ("清芬园", "生煎包窗口", "小吃", C, "1F", [
+        ("生煎包（猪肉）", "小吃", 3.0, "个"), ("生煎包（虾仁）", "小吃", 4.0, "个"),
+        ("锅贴", "小吃", 8.0, "份"), ("小馄饨", "面食", 6.0, "碗"),
+    ]),
+    ("清芬园", "重庆小面", "面食", C, "1F", [
+        ("重庆小面", "面食", 10.0, "碗"), ("担担面", "面食", 10.0, "碗"),
+        ("红烧牛肉面", "面食", 15.0, "碗"), ("三合一拌面", "面食", 12.0, "碗"),
+    ]),
+    ("清芬园", "麻辣香锅/麻辣烫", "麻辣烫", C, "1F", [
+        ("麻辣香锅（小）", "麻辣烫", 15.0, "份"), ("麻辣香锅（大）", "麻辣烫", 25.0, "份"),
+        ("麻辣烫", "麻辣烫", 12.0, "份"),
+    ]),
+    ("清芬园", "黄焖鸡米饭", "套餐", C, "1F", [
+        ("黄焖鸡米饭", "套餐", 13.0, "份"), ("黄焖排骨饭", "套餐", 16.0, "份"),
+    ]),
+    ("清芬园", "北京烤鸭", "北京菜", C, "2F", [
+        ("北京烤鸭（小份）", "北京菜", 9.0, "盘"), ("北京烤鸭（大份）", "北京菜", 18.0, "盘"),
+        ("葱油饼", "主食", 3.0, "个"),
+    ]),
+    ("清芬园", "基本大伙", "自选餐", C, "2F", [
+        ("咖喱鸡排意面", "套餐", 16.0, "份"), ("糖醋里脊", "炒菜", 14.0, "份"),
+        ("番茄炒蛋", "炒菜", 6.0, "份"), ("杏仁小米饼", "小吃", 4.0, "个"),
+        ("米饭", "主食", 0.5, "两"),
+    ]),
+    ("清芬园", "涮羊肉", "火锅", C, "2F", [
+        ("涮羊肉套餐", "火锅", 22.0, "份"), ("蘸料", "火锅", 2.0, "份"),
+    ]),
+
+    # ==================== 听涛园 ====================
+    ("听涛园", "陕西面食", "面食", C, "1F", [
+        ("油泼面", "面食", 10.0, "碗"), ("肉夹馍", "小吃", 3.0, "个"),
+        ("臊子面", "面食", 10.0, "碗"), ("烩麻食", "面食", 8.0, "碗"),
+    ]),
+    ("听涛园", "热干面", "面食", C, "1F", [
+        ("热干面", "面食", 8.0, "碗"), ("沙茶面", "面食", 12.0, "碗"),
+    ]),
+    ("听涛园", "麻辣香锅", "麻辣烫", C, "1F", [
+        ("麻辣香锅（中份）", "麻辣烫", 18.0, "份"), ("麻辣香锅（大份）", "麻辣烫", 28.0, "份"),
+    ]),
+    ("听涛园", "盖浇饭", "盖浇饭", C, "1F", [
+        ("鱼香肉丝盖浇饭", "盖浇饭", 12.0, "份"), ("宫保鸡丁盖浇饭", "盖浇饭", 13.0, "份"),
+        ("红烧牛肉盖浇饭", "盖浇饭", 16.0, "份"),
+    ]),
+    ("听涛园", "清青牛拉", "面食", CWA, "2F", [
+        ("兰州牛肉拉面", "面食", 14.0, "碗"), ("红烧牛肉面", "面食", 18.0, "碗"),
+        ("红柳大串", "烧烤", 12.0, "串"), ("烤羊肉串", "烧烤", 6.0, "串"),
+    ]),
+
+    # ==================== 丁香园 ====================
+    ("丁香园", "广式肠粉", "粤菜", C, "1F", [
+        ("鸡蛋肠粉", "粤菜", 6.0, "份"), ("鲜虾肠粉", "粤菜", 8.0, "份"),
+        ("叉烧肠粉", "粤菜", 8.0, "份"),
+    ]),
+    ("丁香园", "老碗鱼/排骨", "炒菜", C, "1F", [
+        ("老碗鱼", "炒菜", 15.0, "碗"), ("老碗排骨", "炒菜", 18.0, "碗"),
+        ("红烧排骨", "炒菜", 16.0, "份"),
+    ]),
+    ("丁香园", "烤肉拌饭", "套餐", C, "1F", [
+        ("烤肉拌饭", "套餐", 12.0, "份"), ("煲仔饭", "套餐", 15.0, "份"),
+        ("东坡肉", "炒菜", 14.0, "份"),
+    ]),
+    ("丁香园", "骨汤冒菜", "麻辣烫", C, "1F", [
+        ("骨汤冒菜（素）", "麻辣烫", 12.0, "份"), ("骨汤冒菜（荤）", "麻辣烫", 16.0, "份"),
+    ]),
+    ("丁香园", "南粉北面", "面食", C, "1F", [
+        ("猪手刀削面", "面食", 13.0, "碗"), ("桂林米粉", "面食", 12.0, "碗"),
+    ]),
+
+    # ==================== 观畴园 ====================
+    ("观畴园", "清青永和", "快餐", CWA, "1F", [
+        ("豆浆", "饮品", 3.0, "杯"), ("油条", "小吃", 2.5, "根"),
+        ("小笼包", "小吃", 8.0, "笼"), ("蛋炒饭", "主食", 6.0, "份"),
+    ]),
+    ("观畴园", "风味小吃", "小吃", C, "1F", [
+        ("猪脚面", "面食", 13.0, "碗"), ("滑蛋饭", "套餐", 12.0, "份"),
+        ("馋嘴啵啵饭", "套餐", 14.0, "份"), ("铁板饭", "铁板烧", 16.0, "份"),
+        ("铁锅焖面", "面食", 12.0, "碗"),
+    ]),
+    ("观畴园", "清青咖啡", "咖啡", CWA, "1F", [
+        ("美式咖啡", "饮品", 12.0, "杯"), ("拿铁", "饮品", 16.0, "杯"),
+        ("抹茶拿铁", "饮品", 18.0, "杯"), ("提拉米苏", "甜品", 16.0, "份"),
+    ]),
+    ("观畴园", "清真餐厅", "清真", C, "1F", [
+        ("兰州牛肉面", "面食", 14.0, "碗"), ("大盘鸡", "炒菜", 18.0, "份"),
+        ("手抓饭", "主食", 12.0, "份"),
+    ]),
+    ("观畴园", "自选餐厅", "自选餐", C, "2F", [
+        ("虎眼丸子", "炒菜", 12.0, "份"), ("松鼠草鱼", "炒菜", 22.0, "份"),
+        ("京酱肉丝", "炒菜", 12.0, "份"), ("驴打滚", "小吃", 2.0, "个"),
+        ("老汤酱货拼盘", "熟食", 16.0, "份"),
+    ]),
+    ("观畴园", "糕点房", "糕点", C, "2F", [
+        ("蛋黄酥", "糕点", 6.0, "个"), ("蛋挞", "糕点", 4.0, "个"),
+        ("肉松面包", "糕点", 5.0, "个"),
+    ]),
+    ("观畴园", "点餐聚餐", "点餐", CWA, "3F", [
+        ("烤鸭", "北京菜", 68.0, "只"), ("锅包肉", "炒菜", 28.0, "份"),
+        ("清蒸鲈鱼", "粤菜", 48.0, "条"), ("烤全鱼", "烤鱼", 58.0, "条"),
+    ]),
+
+    # ==================== 芝兰园 ====================
+    ("芝兰园", "伊斯兰风味", "清真", C, "1F", [
+        ("关东锅包肉", "炒菜", 16.0, "份"), ("烤羊排", "烧烤", 22.0, "份"),
+        ("大盘鸡", "炒菜", 18.0, "份"), ("馕", "主食", 3.0, "个"),
+    ]),
+    ("芝兰园", "清青小火锅", "火锅", CWA, "2F", [
+        ("单人小火锅", "火锅", 38.0, "份"), ("双人火锅套餐", "火锅", 68.0, "份"),
+        ("肥牛卷", "火锅", 18.0, "盘"), ("菌菇拼盘", "火锅", 12.0, "盘"),
+    ]),
+
+    # ==================== 玉树园 ====================
+    ("玉树园", "川菜窗口", "川菜", C, "1F", [
+        ("水煮鱼", "川菜", 22.0, "份"), ("麻婆豆腐", "川菜", 8.0, "份"),
+        ("回锅肉", "川菜", 14.0, "份"), ("口水鸡", "凉菜", 12.0, "份"),
+    ]),
+    ("玉树园", "鲁菜窗口", "鲁菜", C, "1F", [
+        ("葱烧海参", "鲁菜", 32.0, "份"), ("九转大肠", "鲁菜", 28.0, "份"),
+        ("糖醋鲤鱼", "鲁菜", 24.0, "份"),
+    ]),
+    ("玉树园", "韩餐", "韩餐", C, "2F", [
+        ("韩式拌饭", "韩餐", 14.0, "份"), ("韩式炸鸡", "韩餐", 16.0, "份"),
+        ("大酱汤", "汤粥", 8.0, "碗"), ("泡菜饼", "小吃", 6.0, "个"),
+    ]),
+    ("玉树园", "夜宵窗口", "小吃", C, "2F", [
+        ("烤鸡翅", "烧烤", 8.0, "串"), ("炒年糕", "小吃", 10.0, "份"),
+        ("炸鸡排", "小吃", 8.0, "份"),
+    ]),
+
+    # ==================== 荷园 ====================
+    ("荷园", "风味小吃", "小吃", C, "1F", [
+        ("东坡肉", "炒菜", 14.0, "份"), ("酸菜鱼", "炒菜", 18.0, "份"),
+        ("小酥肉", "小吃", 10.0, "份"), ("酸辣土豆丝", "炒菜", 5.0, "份"),
+    ]),
+    ("荷园", "面点", "面食", C, "1F", [
+        ("鲜肉包", "小吃", 2.0, "个"), ("豆沙包", "小吃", 1.5, "个"),
+        ("花卷", "主食", 1.0, "个"),
+    ]),
+    ("荷园", "精致自选", "自选餐", C, "2F", [
+        ("淮扬狮子头", "淮扬菜", 14.0, "份"), ("锅包肉", "炒菜", 14.0, "份"),
+        ("养生煨汤", "汤粥", 10.0, "碗"), ("清炒时蔬", "炒菜", 4.0, "份"),
+    ]),
+
+    # ==================== 教工食堂 ====================
+    ("澜园", "点菜餐厅", "点餐", CWA, "2F", [
+        ("烤鸭", "北京菜", 88.0, "只"), ("清蒸鲈鱼", "粤菜", 58.0, "条"),
+        ("干锅花菜", "炒菜", 22.0, "份"),
+    ]),
+    ("澜园", "风味小吃", "自选餐", C, "3F", [
+        ("酸辣粉", "面食", 10.0, "碗"), ("煎饼果子", "小吃", 6.0, "个"),
+        ("麻辣香锅", "麻辣烫", 18.0, "份"),
+    ]),
+
+    ("寓园", "瓦罐汤", "汤粥", C, "1F", [
+        ("瓦罐鸡汤", "汤粥", 12.0, "罐"), ("瓦罐排骨汤", "汤粥", 15.0, "罐"),
+        ("瓦罐老鸭汤", "汤粥", 18.0, "罐"),
+    ]),
+    ("寓园", "陕西面食", "面食", C, "1F", [
+        ("油泼面", "面食", 10.0, "碗"), ("肉夹馍", "小吃", 4.0, "个"),
+    ]),
+    ("寓园", "特色小炒", "炒菜", C, "1F", [
+        ("回锅肉", "炒菜", 14.0, "份"), ("麻婆豆腐", "炒菜", 8.0, "份"),
+    ]),
+
+    ("南园", "老妈蹄花", "炒菜", C, "2F", [
+        ("老妈蹄花", "汤粥", 18.0, "份"), ("陕西牛肉饼", "小吃", 6.0, "个"),
+    ]),
+    ("南园", "基本大伙", "自选餐", C, "1F", [
+        ("番茄炒蛋", "炒菜", 6.0, "份"), ("红烧肉", "炒菜", 12.0, "份"),
+        ("手撕包菜", "炒菜", 5.0, "份"),
+    ]),
+
+    ("家园", "熟食窗口", "熟食", C, "1F", [
+        ("酱肘子", "熟食", 22.0, "份"), ("酱猪蹄", "熟食", 18.0, "只"),
+        ("酱牛肉", "熟食", 28.0, "份"),
+    ]),
+    ("家园", "基本大伙", "自选餐", C, "1F", [
+        ("宫保鸡丁", "炒菜", 12.0, "份"), ("地三鲜", "炒菜", 10.0, "份"),
+    ]),
+
+    ("北园", "北方菜窗口", "北方菜", C, "1F", [
+        ("红烧鳕鱼", "炒菜", 16.0, "份"), ("香酥鸡块", "小吃", 12.0, "份"),
+        ("东北乱炖", "炖菜", 14.0, "份"),
+    ]),
+
+    # ==================== 特色餐厅 ====================
+    ("融园", "过桥米线", "面食", C, "1F", [
+        ("过桥米线", "面食", 15.0, "碗"), ("酸汤米线", "面食", 12.0, "碗"),
+    ]),
+    ("融园", "铁板/锡纸", "铁板烧", C, "1F", [
+        ("铁板牛肉", "铁板烧", 18.0, "份"), ("锡纸花甲粉", "小吃", 16.0, "份"),
+        ("锡纸金针菇", "小吃", 8.0, "份"),
+    ]),
+
+    ("熙春园", "桌餐", "点餐", CWA, "1F", [
+        ("北京烤鸭", "北京菜", 128.0, "只"), ("葱烧海参", "鲁菜", 68.0, "份"),
+        ("松鼠鳜鱼", "粤菜", 88.0, "条"), ("宫保虾球", "炒菜", 42.0, "份"),
+    ]),
+]
+
+
+# ============================================================
+# 营养成分数据库 (基于中国食物成分表 + 常见菜品标准营养数据)
+# ============================================================
+
+# 基础食材营养 (每100g)
+INGREDIENT_NUTRITION = {
+    # 肉类
+    "猪肉": {"calories": 395, "protein": 13.2, "fat": 37.0, "carbs": 2.4, "fiber": 0, "sodium": 59},
+    "牛肉": {"calories": 125, "protein": 19.9, "fat": 4.2, "carbs": 2.0, "fiber": 0, "sodium": 84},
+    "鸡肉": {"calories": 167, "protein": 19.3, "fat": 9.4, "carbs": 1.3, "fiber": 0, "sodium": 63},
+    "羊肉": {"calories": 203, "protein": 19.0, "fat": 14.1, "carbs": 0, "fiber": 0, "sodium": 80},
+    "鱼肉": {"calories": 113, "protein": 18.0, "fat": 4.0, "carbs": 0, "fiber": 0, "sodium": 51},
+    "虾仁": {"calories": 87, "protein": 18.6, "fat": 0.8, "carbs": 2.8, "fiber": 0, "sodium": 165},
+    # 主食
+    "米饭": {"calories": 116, "protein": 2.6, "fat": 0.3, "carbs": 25.9, "fiber": 0.3, "sodium": 2},
+    "面条": {"calories": 284, "protein": 8.3, "fat": 0.7, "carbs": 61.9, "fiber": 0.8, "sodium": 27},
+    "馒头": {"calories": 223, "protein": 7.0, "fat": 1.1, "carbs": 44.2, "fiber": 1.3, "sodium": 165},
+    "饺子": {"calories": 240, "protein": 9.0, "fat": 8.0, "carbs": 33.0, "fiber": 1.0, "sodium": 350},
+    "包子": {"calories": 227, "protein": 8.0, "fat": 7.0, "carbs": 32.0, "fiber": 0.8, "sodium": 280},
+    # 蔬菜
+    "时蔬": {"calories": 32, "protein": 2.0, "fat": 0.5, "carbs": 4.0, "fiber": 1.5, "sodium": 50},
+    "土豆": {"calories": 76, "protein": 2.0, "fat": 0.2, "carbs": 17.2, "fiber": 0.7, "sodium": 2},
+    "豆腐": {"calories": 76, "protein": 8.1, "fat": 3.7, "carbs": 4.2, "fiber": 0.4, "sodium": 7},
+    "鸡蛋": {"calories": 144, "protein": 13.3, "fat": 8.8, "carbs": 2.8, "fiber": 0, "sodium": 130},
+    # 调料/烹饪方式加成
+    "红烧": {"calories": 80, "protein": 0, "fat": 5.0, "carbs": 8.0, "fiber": 0, "sodium": 400},
+    "油炸": {"calories": 150, "protein": 0, "fat": 15.0, "carbs": 5.0, "fiber": 0, "sodium": 100},
+    "麻辣": {"calories": 50, "protein": 0, "fat": 4.0, "carbs": 3.0, "fiber": 0, "sodium": 300},
+    "清蒸": {"calories": 10, "protein": 0, "fat": 0.5, "carbs": 1.0, "fiber": 0, "sodium": 50},
+    "凉拌": {"calories": 30, "protein": 0, "fat": 2.0, "carbs": 3.0, "fiber": 0, "sodium": 100},
+}
+
+# 具体菜品精确营养 (基于标准菜谱)
+EXACT_NUTRITION = {
+    "番茄炒蛋": {"calories": 87, "protein": 4.6, "fat": 5.8, "carbs": 4.1, "fiber": 0.6, "sodium": 210},
+    "红烧肉": {"calories": 478, "protein": 8.0, "fat": 46.0, "carbs": 6.0, "fiber": 0, "sodium": 480},
+    "宫保鸡丁": {"calories": 190, "protein": 18.0, "fat": 11.0, "carbs": 6.0, "fiber": 1.0, "sodium": 520},
+    "麻婆豆腐": {"calories": 126, "protein": 8.0, "fat": 8.0, "carbs": 5.0, "fiber": 1.2, "sodium": 580},
+    "回锅肉": {"calories": 298, "protein": 13.0, "fat": 26.0, "carbs": 4.0, "fiber": 0.5, "sodium": 460},
+    "鱼香肉丝": {"calories": 155, "protein": 12.0, "fat": 10.0, "carbs": 7.0, "fiber": 0.8, "sodium": 500},
+    "水煮鱼": {"calories": 230, "protein": 20.0, "fat": 14.0, "carbs": 6.0, "fiber": 0.5, "sodium": 680},
+    "水煮肉片": {"calories": 260, "protein": 22.0, "fat": 17.0, "carbs": 5.0, "fiber": 0.5, "sodium": 700},
+    "酸菜鱼": {"calories": 160, "protein": 18.0, "fat": 8.0, "carbs": 4.0, "fiber": 0.5, "sodium": 550},
+    "锅包肉": {"calories": 280, "protein": 15.0, "fat": 16.0, "carbs": 20.0, "fiber": 0, "sodium": 420},
+    "地三鲜": {"calories": 150, "protein": 3.0, "fat": 10.0, "carbs": 14.0, "fiber": 2.0, "sodium": 400},
+    "辣子鸡": {"calories": 250, "protein": 22.0, "fat": 16.0, "carbs": 4.0, "fiber": 0.5, "sodium": 550},
+    "糖醋里脊": {"calories": 260, "protein": 16.0, "fat": 12.0, "carbs": 22.0, "fiber": 0, "sodium": 450},
+    "酸辣土豆丝": {"calories": 88, "protein": 2.0, "fat": 4.0, "carbs": 12.0, "fiber": 1.0, "sodium": 300},
+    "清炒时蔬": {"calories": 45, "protein": 2.0, "fat": 3.0, "carbs": 3.0, "fiber": 1.5, "sodium": 150},
+    "京酱肉丝": {"calories": 200, "protein": 18.0, "fat": 12.0, "carbs": 6.0, "fiber": 0.5, "sodium": 450},
+    "东坡肉": {"calories": 478, "protein": 8.0, "fat": 46.0, "carbs": 6.0, "fiber": 0, "sodium": 480},
+    "小酥肉": {"calories": 320, "protein": 16.0, "fat": 22.0, "carbs": 14.0, "fiber": 0, "sodium": 450},
+    "糖醋鲤鱼": {"calories": 200, "protein": 18.0, "fat": 8.0, "carbs": 15.0, "fiber": 0, "sodium": 350},
+    "葱烧海参": {"calories": 80, "protein": 6.0, "fat": 3.0, "carbs": 7.0, "fiber": 0, "sodium": 500},
+    "九转大肠": {"calories": 350, "protein": 14.0, "fat": 30.0, "carbs": 6.0, "fiber": 0, "sodium": 550},
+    "大盘鸡": {"calories": 320, "protein": 22.0, "fat": 14.0, "carbs": 26.0, "fiber": 2.0, "sodium": 580},
+    "口水鸡": {"calories": 200, "protein": 20.0, "fat": 13.0, "carbs": 2.0, "fiber": 0, "sodium": 350},
+    "烤羊排": {"calories": 330, "protein": 18.0, "fat": 26.0, "carbs": 4.0, "fiber": 0, "sodium": 400},
+    # 面食
+    "油泼面": {"calories": 360, "protein": 11.0, "fat": 9.0, "carbs": 57.0, "fiber": 1.5, "sodium": 480},
+    "炸酱面": {"calories": 350, "protein": 12.0, "fat": 10.0, "carbs": 52.0, "fiber": 1.5, "sodium": 580},
+    "重庆小面": {"calories": 300, "protein": 10.0, "fat": 12.0, "carbs": 38.0, "fiber": 1.0, "sodium": 600},
+    "担担面": {"calories": 320, "protein": 11.0, "fat": 12.0, "carbs": 40.0, "fiber": 1.0, "sodium": 550},
+    "兰州牛肉拉面": {"calories": 380, "protein": 15.0, "fat": 8.0, "carbs": 58.0, "fiber": 2.0, "sodium": 650},
+    "红烧牛肉面": {"calories": 380, "protein": 15.0, "fat": 8.0, "carbs": 58.0, "fiber": 2.0, "sodium": 650},
+    "热干面": {"calories": 340, "protein": 10.0, "fat": 12.0, "carbs": 48.0, "fiber": 1.0, "sodium": 550},
+    "沙茶面": {"calories": 350, "protein": 12.0, "fat": 14.0, "carbs": 45.0, "fiber": 1.0, "sodium": 600},
+    "酸辣粉": {"calories": 180, "protein": 3.0, "fat": 5.0, "carbs": 30.0, "fiber": 1.5, "sodium": 700},
+    "螺蛳粉": {"calories": 350, "protein": 8.0, "fat": 14.0, "carbs": 48.0, "fiber": 1.5, "sodium": 750},
+    "桂林米粉": {"calories": 300, "protein": 8.0, "fat": 6.0, "carbs": 50.0, "fiber": 1.0, "sodium": 450},
+    "燃面": {"calories": 380, "protein": 10.0, "fat": 14.0, "carbs": 52.0, "fiber": 1.0, "sodium": 550},
+    "烩麻食": {"calories": 280, "protein": 9.0, "fat": 6.0, "carbs": 48.0, "fiber": 1.5, "sodium": 350},
+    "猪脚面": {"calories": 380, "protein": 16.0, "fat": 14.0, "carbs": 46.0, "fiber": 0.5, "sodium": 600},
+    "猪手刀削面": {"calories": 370, "protein": 16.0, "fat": 13.0, "carbs": 48.0, "fiber": 1.0, "sodium": 580},
+    # 米饭套餐
+    "蛋炒饭": {"calories": 210, "protein": 6.0, "fat": 8.0, "carbs": 28.0, "fiber": 0.5, "sodium": 300},
+    "烧鸭饭": {"calories": 450, "protein": 22.0, "fat": 16.0, "carbs": 55.0, "fiber": 1.0, "sodium": 600},
+    "海南鸡饭": {"calories": 450, "protein": 28.0, "fat": 14.0, "carbs": 52.0, "fiber": 1.0, "sodium": 400},
+    "叉烧饭": {"calories": 450, "protein": 22.0, "fat": 16.0, "carbs": 55.0, "fiber": 1.0, "sodium": 600},
+    "黄焖鸡米饭": {"calories": 380, "protein": 22.0, "fat": 14.0, "carbs": 40.0, "fiber": 1.0, "sodium": 600},
+    "烤肉拌饭": {"calories": 420, "protein": 20.0, "fat": 16.0, "carbs": 48.0, "fiber": 0.5, "sodium": 550},
+    "煲仔饭": {"calories": 400, "protein": 16.0, "fat": 14.0, "carbs": 50.0, "fiber": 1.0, "sodium": 500},
+    "滑蛋饭": {"calories": 320, "protein": 14.0, "fat": 12.0, "carbs": 36.0, "fiber": 0.5, "sodium": 300},
+    "咖喱鸡排意面": {"calories": 420, "protein": 20.0, "fat": 16.0, "carbs": 48.0, "fiber": 1.5, "sodium": 500},
+    "韩式拌饭": {"calories": 420, "protein": 16.0, "fat": 12.0, "carbs": 60.0, "fiber": 3.0, "sodium": 550},
+    "手抓饭": {"calories": 380, "protein": 14.0, "fat": 12.0, "carbs": 52.0, "fiber": 0.5, "sodium": 400},
+    # 面点小吃
+    "生煎包": {"calories": 270, "protein": 10.0, "fat": 13.0, "carbs": 29.0, "fiber": 0.8, "sodium": 400},
+    "生煎包（猪肉）": {"calories": 270, "protein": 10.0, "fat": 13.0, "carbs": 29.0, "fiber": 0.8, "sodium": 400},
+    "生煎包（虾仁）": {"calories": 230, "protein": 12.0, "fat": 9.0, "carbs": 27.0, "fiber": 0.5, "sodium": 380},
+    "小笼包": {"calories": 240, "protein": 12.0, "fat": 14.0, "carbs": 18.0, "fiber": 0.5, "sodium": 380},
+    "肉夹馍": {"calories": 220, "protein": 10.0, "fat": 8.0, "carbs": 28.0, "fiber": 1.0, "sodium": 350},
+    "煎饼果子": {"calories": 320, "protein": 10.0, "fat": 12.0, "carbs": 42.0, "fiber": 2.0, "sodium": 550},
+    "鸡蛋灌饼": {"calories": 280, "protein": 8.0, "fat": 10.0, "carbs": 38.0, "fiber": 1.5, "sodium": 450},
+    "烤冷面": {"calories": 250, "protein": 6.0, "fat": 8.0, "carbs": 38.0, "fiber": 0.5, "sodium": 500},
+    "锅贴": {"calories": 260, "protein": 10.0, "fat": 14.0, "carbs": 24.0, "fiber": 0.5, "sodium": 380},
+    "油条": {"calories": 386, "protein": 6.9, "fat": 17.6, "carbs": 51.0, "fiber": 0.9, "sodium": 585},
+    "馕": {"calories": 240, "protein": 8.0, "fat": 2.0, "carbs": 48.0, "fiber": 2.0, "sodium": 10},
+    "驴打滚": {"calories": 180, "protein": 4.0, "fat": 2.0, "carbs": 36.0, "fiber": 1.0, "sodium": 20},
+    "春卷": {"calories": 280, "protein": 6.0, "fat": 16.0, "carbs": 28.0, "fiber": 1.0, "sodium": 350},
+    # 汤粥
+    "紫菜蛋花汤": {"calories": 30, "protein": 2.0, "fat": 1.0, "carbs": 3.0, "fiber": 0.3, "sodium": 350},
+    "瓦罐鸡汤": {"calories": 60, "protein": 8.0, "fat": 3.0, "carbs": 0, "fiber": 0, "sodium": 200},
+    "大酱汤": {"calories": 80, "protein": 4.0, "fat": 3.0, "carbs": 8.0, "fiber": 1.0, "sodium": 600},
+    "豆浆": {"calories": 31, "protein": 3.0, "fat": 1.5, "carbs": 1.5, "fiber": 0, "sodium": 2},
+    "小吊梨汤": {"calories": 60, "protein": 0.5, "fat": 0, "carbs": 15.0, "fiber": 0.5, "sodium": 5},
+    "小米粥": {"calories": 46, "protein": 1.4, "fat": 0.7, "carbs": 8.4, "fiber": 0.5, "sodium": 2},
+    # 饮品
+    "美式咖啡": {"calories": 10, "protein": 0.5, "fat": 0, "carbs": 1.0, "fiber": 0, "sodium": 5},
+    "拿铁": {"calories": 120, "protein": 6.0, "fat": 6.0, "carbs": 10.0, "fiber": 0, "sodium": 70},
+    "珍珠奶茶": {"calories": 180, "protein": 2.0, "fat": 4.0, "carbs": 34.0, "fiber": 0, "sodium": 50},
+    "港式奶茶": {"calories": 140, "protein": 4.0, "fat": 6.0, "carbs": 18.0, "fiber": 0, "sodium": 60},
+    # 火锅/麻辣烫
+    "涮羊肉（小份）": {"calories": 350, "protein": 25.0, "fat": 22.0, "carbs": 12.0, "fiber": 1.0, "sodium": 600},
+    "涮羊肉（大份）": {"calories": 500, "protein": 35.0, "fat": 30.0, "carbs": 15.0, "fiber": 1.5, "sodium": 800},
+    "麻辣香锅（小份）": {"calories": 380, "protein": 18.0, "fat": 24.0, "carbs": 22.0, "fiber": 2.5, "sodium": 750},
+    "麻辣香锅（中份）": {"calories": 450, "protein": 24.0, "fat": 28.0, "carbs": 26.0, "fiber": 3.0, "sodium": 850},
+    "麻辣香锅（大份）": {"calories": 550, "protein": 30.0, "fat": 34.0, "carbs": 30.0, "fiber": 3.5, "sodium": 1000},
+    "麻辣烫": {"calories": 220, "protein": 12.0, "fat": 12.0, "carbs": 18.0, "fiber": 3.0, "sodium": 750},
+    "麻辣烫（素）": {"calories": 150, "protein": 5.0, "fat": 8.0, "carbs": 15.0, "fiber": 3.5, "sodium": 650},
+    "麻辣烫（荤素搭配）": {"calories": 280, "protein": 15.0, "fat": 16.0, "carbs": 20.0, "fiber": 3.0, "sodium": 800},
+    "骨汤冒菜（素）": {"calories": 130, "protein": 6.0, "fat": 6.0, "carbs": 14.0, "fiber": 3.0, "sodium": 500},
+    "骨汤冒菜（荤）": {"calories": 240, "protein": 16.0, "fat": 14.0, "carbs": 16.0, "fiber": 2.5, "sodium": 650},
+    # 火锅
+    "单人小火锅": {"calories": 450, "protein": 28.0, "fat": 26.0, "carbs": 24.0, "fiber": 2.0, "sodium": 900},
+    "双人火锅套餐": {"calories": 850, "protein": 52.0, "fat": 48.0, "carbs": 46.0, "fiber": 4.0, "sodium": 1700},
+    # 烧烤
+    "红柳大串": {"calories": 180, "protein": 16.0, "fat": 12.0, "carbs": 2.0, "fiber": 0, "sodium": 350},
+    "烤羊肉串": {"calories": 120, "protein": 12.0, "fat": 8.0, "carbs": 0.5, "fiber": 0, "sodium": 250},
+    # 烤鸭
+    "北京烤鸭（小份）": {"calories": 218, "protein": 8.3, "fat": 19.2, "carbs": 3.0, "fiber": 0, "sodium": 360},
+    "北京烤鸭（大份）": {"calories": 436, "protein": 16.6, "fat": 38.4, "carbs": 6.0, "fiber": 0, "sodium": 720},
+    "烤鸭": {"calories": 436, "protein": 16.6, "fat": 38.4, "carbs": 6.0, "fiber": 0, "sodium": 720},
+    # 炸物
+    "炸鸡翅": {"calories": 290, "protein": 19.0, "fat": 20.0, "carbs": 8.0, "fiber": 0, "sodium": 420},
+    "香酥鸡块": {"calories": 280, "protein": 18.0, "fat": 18.0, "carbs": 10.0, "fiber": 0, "sodium": 400},
+    "韩式炸鸡": {"calories": 310, "protein": 20.0, "fat": 18.0, "carbs": 16.0, "fiber": 0, "sodium": 500},
+    "炸鲜奶": {"calories": 200, "protein": 4.0, "fat": 10.0, "carbs": 24.0, "fiber": 0, "sodium": 80},
+    "炸猪排定食": {"calories": 580, "protein": 28.0, "fat": 22.0, "carbs": 65.0, "fiber": 2.0, "sodium": 680},
+    # 韩餐
+    "韩式炒年糕": {"calories": 220, "protein": 4.0, "fat": 4.0, "carbs": 42.0, "fiber": 1.0, "sodium": 500},
+    "泡菜豆腐汤": {"calories": 90, "protein": 5.0, "fat": 4.0, "carbs": 8.0, "fiber": 1.0, "sodium": 550},
+    "泡菜饼": {"calories": 180, "protein": 4.0, "fat": 6.0, "carbs": 28.0, "fiber": 1.0, "sodium": 400},
+    # 铁板
+    "铁板牛肉": {"calories": 280, "protein": 24.0, "fat": 18.0, "carbs": 6.0, "fiber": 0.5, "sodium": 520},
+    "铁板豆腐": {"calories": 120, "protein": 9.0, "fat": 7.0, "carbs": 8.0, "fiber": 0.5, "sodium": 300},
+    "铁板鸡排": {"calories": 300, "protein": 22.0, "fat": 16.0, "carbs": 14.0, "fiber": 0.5, "sodium": 450},
+    "铁板饭": {"calories": 420, "protein": 20.0, "fat": 18.0, "carbs": 44.0, "fiber": 1.0, "sodium": 550},
+    # 西餐
+    "玛格丽特披萨": {"calories": 280, "protein": 12.0, "fat": 10.0, "carbs": 36.0, "fiber": 1.5, "sodium": 500},
+    "黑椒牛肉焗饭": {"calories": 380, "protein": 22.0, "fat": 16.0, "carbs": 36.0, "fiber": 1.0, "sodium": 520},
+    "番茄肉酱意面": {"calories": 380, "protein": 14.0, "fat": 12.0, "carbs": 52.0, "fiber": 2.0, "sodium": 480},
+    "芝士焗玉米": {"calories": 180, "protein": 6.0, "fat": 10.0, "carbs": 18.0, "fiber": 1.0, "sodium": 200},
+    "玉米浓汤": {"calories": 120, "protein": 3.0, "fat": 6.0, "carbs": 14.0, "fiber": 1.0, "sodium": 250},
+    # 点心
+    "南瓜酥": {"calories": 180, "protein": 3.0, "fat": 8.0, "carbs": 24.0, "fiber": 1.0, "sodium": 100},
+    "蛋挞": {"calories": 160, "protein": 4.0, "fat": 10.0, "carbs": 14.0, "fiber": 0, "sodium": 60},
+    "蛋黄酥": {"calories": 220, "protein": 5.0, "fat": 12.0, "carbs": 24.0, "fiber": 0.5, "sodium": 120},
+    "肉松面包": {"calories": 280, "protein": 8.0, "fat": 12.0, "carbs": 36.0, "fiber": 1.0, "sodium": 300},
+    "桂花黄米凉糕": {"calories": 150, "protein": 3.0, "fat": 2.0, "carbs": 32.0, "fiber": 0.5, "sodium": 30},
+    "杏仁小米饼": {"calories": 120, "protein": 3.0, "fat": 3.0, "carbs": 22.0, "fiber": 1.0, "sodium": 20},
+    # 其他
+    "酱肘子": {"calories": 280, "protein": 22.0, "fat": 20.0, "carbs": 2.0, "fiber": 0, "sodium": 600},
+    "酱猪蹄": {"calories": 260, "protein": 20.0, "fat": 18.0, "carbs": 4.0, "fiber": 0, "sodium": 550},
+    "酱牛肉": {"calories": 200, "protein": 30.0, "fat": 8.0, "carbs": 2.0, "fiber": 0, "sodium": 650},
+    "酱猪肘": {"calories": 280, "protein": 22.0, "fat": 20.0, "carbs": 2.0, "fiber": 0, "sodium": 600},
+    "护心肉": {"calories": 200, "protein": 18.0, "fat": 14.0, "carbs": 0, "fiber": 0, "sodium": 350},
+    "跷脚牛肉": {"calories": 180, "protein": 22.0, "fat": 10.0, "carbs": 2.0, "fiber": 0, "sodium": 300},
+    "骨汤冒菜（荤）": {"calories": 240, "protein": 16.0, "fat": 14.0, "carbs": 16.0, "fiber": 2.5, "sodium": 650},
+    "骨汤冒菜（素）": {"calories": 130, "protein": 6.0, "fat": 6.0, "carbs": 14.0, "fiber": 3.0, "sodium": 500},
+    "老碗鱼": {"calories": 280, "protein": 20.0, "fat": 16.0, "carbs": 12.0, "fiber": 1.0, "sodium": 600},
+    "老碗排骨": {"calories": 320, "protein": 22.0, "fat": 20.0, "carbs": 10.0, "fiber": 0.5, "sodium": 550},
+    "馋嘴啵啵饭": {"calories": 400, "protein": 16.0, "fat": 14.0, "carbs": 50.0, "fiber": 1.0, "sodium": 550},
+    "铁锅焖面": {"calories": 380, "protein": 14.0, "fat": 12.0, "carbs": 52.0, "fiber": 1.5, "sodium": 500},
+    "虎眼丸子": {"calories": 220, "protein": 14.0, "fat": 16.0, "carbs": 6.0, "fiber": 0, "sodium": 450},
+    "松鼠草鱼": {"calories": 240, "protein": 18.0, "fat": 12.0, "carbs": 16.0, "fiber": 0.5, "sodium": 400},
+    "老汤酱货拼盘": {"calories": 250, "protein": 22.0, "fat": 16.0, "carbs": 4.0, "fiber": 0, "sodium": 550},
+    "东北乱炖": {"calories": 200, "protein": 14.0, "fat": 10.0, "carbs": 16.0, "fiber": 3.0, "sodium": 500},
+    "松鼠鳜鱼": {"calories": 220, "protein": 20.0, "fat": 10.0, "carbs": 14.0, "fiber": 0, "sodium": 350},
+    "宫保虾球": {"calories": 180, "protein": 16.0, "fat": 8.0, "carbs": 10.0, "fiber": 0.5, "sodium": 480},
+    "老妈蹄花": {"calories": 250, "protein": 18.0, "fat": 18.0, "carbs": 4.0, "fiber": 0, "sodium": 400},
+    "陕西牛肉饼": {"calories": 320, "protein": 12.0, "fat": 16.0, "carbs": 32.0, "fiber": 1.0, "sodium": 450},
+    "过桥米线": {"calories": 320, "protein": 12.0, "fat": 10.0, "carbs": 44.0, "fiber": 1.0, "sodium": 500},
+    "酸汤米线": {"calories": 280, "protein": 8.0, "fat": 8.0, "carbs": 42.0, "fiber": 1.0, "sodium": 450},
+    "锡纸花甲粉": {"calories": 220, "protein": 10.0, "fat": 6.0, "carbs": 32.0, "fiber": 1.0, "sodium": 500},
+    "锡纸金针菇": {"calories": 60, "protein": 3.0, "fat": 3.0, "carbs": 6.0, "fiber": 2.0, "sodium": 300},
+    "冰淇淋": {"calories": 127, "protein": 2.4, "fat": 5.3, "carbs": 17.3, "fiber": 0, "sodium": 45},
+}
+
+
+def guess_nutrition(dish_name):
+    """基于菜品名关键词 + 食材 + 烹饪方式智能估算营养成分"""
+    # 1. 精确匹配
+    if dish_name in EXACT_NUTRITION:
+        return EXACT_NUTRITION[dish_name]
+
+    # 2. 模糊匹配: 尝试去掉括号/单位
+    cleaned = dish_name.replace("（", "(").replace("）", ")")
+    base_name = cleaned.split("(")[0].strip()
+    if base_name in EXACT_NUTRITION:
+        return EXACT_NUTRITION[base_name]
+
+    # 3. 基于食材+烹饪方式的关键词匹配
+    result = {"calories": 0, "protein": 0, "fat": 0, "carbs": 0, "fiber": 0, "sodium": 0}
+
+    # 估算份量系数 (食堂一份约300-500g)
+    portion = 3.5  # 平均350g
+
+    # 检测主食
+    if any(k in dish_name for k in ["饭", "米线", "面", "粉", "意面"]):
+        if "饭" in dish_name:
+            result["calories"] += 116 * portion * 0.4
+            result["carbs"] += 25.9 * portion * 0.4
+            result["protein"] += 2.6 * portion * 0.4
+        if "面" in dish_name or "粉" in dish_name or "米线" in dish_name:
+            result["calories"] += 284 * portion * 0.35
+            result["carbs"] += 61.9 * portion * 0.35
+            result["protein"] += 8.3 * portion * 0.35
+
+    # 检测肉类
+    if any(k in dish_name for k in ["牛肉", "牛腩"]):
+        result["calories"] += 125 * portion * 0.25
+        result["protein"] += 19.9 * portion * 0.25
+        result["fat"] += 4.2 * portion * 0.25
+    elif any(k in dish_name for k in ["猪肉", "猪", "叉烧", "排骨", "蹄花", "肘子"]):
+        result["calories"] += 395 * portion * 0.2
+        result["protein"] += 13.2 * portion * 0.2
+        result["fat"] += 37.0 * portion * 0.2
+    elif "鸡" in dish_name:
+        result["calories"] += 167 * portion * 0.25
+        result["protein"] += 19.3 * portion * 0.25
+        result["fat"] += 9.4 * portion * 0.25
+    elif "羊" in dish_name:
+        result["calories"] += 203 * portion * 0.25
+        result["protein"] += 19.0 * portion * 0.25
+        result["fat"] += 14.1 * portion * 0.25
+    elif any(k in dish_name for k in ["鱼", "鳕鱼", "鲈鱼", "鳜鱼"]):
+        result["calories"] += 113 * portion * 0.3
+        result["protein"] += 18.0 * portion * 0.3
+        result["fat"] += 4.0 * portion * 0.3
+    elif "虾" in dish_name:
+        result["calories"] += 87 * portion * 0.25
+        result["protein"] += 18.6 * portion * 0.25
+        result["fat"] += 0.8 * portion * 0.25
+
+    # 检测豆腐/蔬菜
+    if "豆腐" in dish_name:
+        result["calories"] += 76 * portion * 0.3
+        result["protein"] += 8.1 * portion * 0.3
+        result["fat"] += 3.7 * portion * 0.3
+    if any(k in dish_name for k in ["蔬菜", "时蔬", "青菜", "包菜"]):
+        result["calories"] += 32 * portion * 0.3
+        result["fiber"] += 1.5 * portion * 0.3
+    if "蛋" in dish_name or "鸡蛋" in dish_name:
+        result["calories"] += 144 * 1.5
+        result["protein"] += 13.3 * 1.5
+        result["fat"] += 8.8 * 1.5
+
+    # 检测烹饪方式加成
+    if any(k in dish_name for k in ["红烧", "烧", "焖"]):
+        result["calories"] += 80
+        result["fat"] += 5.0
+        result["sodium"] += 400
+    if any(k in dish_name for k in ["炸", "酥"]):
+        result["calories"] += 150
+        result["fat"] += 15.0
+    if any(k in dish_name for k in ["麻辣", "辣", "香锅", "冒菜"]):
+        result["calories"] += 50
+        result["fat"] += 4.0
+        result["sodium"] += 300
+
+    # 如果没有主食且没有肉类 (小吃/饮品)
+    if result["calories"] == 0:
+        if any(k in dish_name for k in ["咖啡", "奶茶", "茶", "豆浆", "梨汤", "可乐", "果汁"]):
+            result["calories"] = 80
+            result["carbs"] = 15.0
+        elif any(k in dish_name for k in ["甜", "糕", "酥", "面包", "饼", "挞"]):
+            result["calories"] = 200
+            result["carbs"] = 30.0
+            result["fat"] = 8.0
+        elif "汤" in dish_name:
+            result["calories"] = 80
+            result["protein"] = 4.0
+            result["sodium"] = 300
+        elif "肠粉" in dish_name:
+            result["calories"] = 200
+            result["protein"] = 6.0
+            result["fat"] = 6.0
+            result["carbs"] = 30.0
+            result["sodium"] = 350
+        elif any(k in dish_name for k in ["酱", "熟食", "卤"]):
+            result["calories"] = 250
+            result["protein"] = 24.0
+            result["fat"] = 16.0
+            result["sodium"] = 600
+        elif "年糕" in dish_name:
+            result["calories"] = 220
+            result["carbs"] = 42.0
+        else:
+            # default fallback: a typical dish
+            result["calories"] = 200
+            result["protein"] = 10.0
+            result["fat"] = 10.0
+            result["carbs"] = 18.0
+            result["sodium"] = 300
+    else:
+        # Round values
+        for k in result:
+            result[k] = round(result[k])
+
+    # Ensure fiber and sodium have defaults
+    if result["fiber"] == 0:
+        result["fiber"] = 1.0
+    if result["sodium"] == 0:
+        result["sodium"] = 350
+
+    return result
+
+
+# ============================================================
+# 种子数据主逻辑
+# ============================================================
+
+async def seed():
+    engine = create_async_engine(settings.DATABASE_URL)
+    async_session_maker = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+    async with async_session_maker() as session:
+        print("开始写入种子数据 (v2)...")
+
+        # --- Users ---
+        admin = User(openid="admin_seed", nickname="食堂管理员", role="admin", contribution_points=100)
+        volunteer = User(openid="volunteer_seed", nickname="志愿者小明", role="volunteer", contribution_points=50)
+        demo_user = User(openid="demo_user_seed", nickname="清华同学", role="user")
+        session.add_all([admin, volunteer, demo_user])
+        await session.flush()
+
+        # --- Canteens ---
+        canteens_by_name = {}
+        for data in CANTEENS:
+            canteen = Canteen(**data)
+            session.add(canteen)
+            canteens_by_name[canteen.name] = canteen
+        await session.flush()
+        print(f"   [OK] 创建 {len(CANTEENS)} 个食堂")
+
+        # --- Windows & Dishes ---
+        total_windows = 0
+        total_dishes = 0
+        all_windows = []
+
+        for i, (canteen_name, win_name, category, payments, floor, dishes_data) in enumerate(WINDOWS_AND_DISHES):
+            canteen = canteens_by_name[canteen_name]
+            window = Window(
+                id=uuid.uuid4(),
+                canteen_id=canteen.id,
+                name=win_name,
+                window_number=f"{i+1:02d}",
+                category=category,
+                payment_methods=payments,
+                is_active=True,
+                description=f"{canteen_name} {floor}",
+            )
+            session.add(window)
+            all_windows.append(window)
+            total_windows += 1
+
+            for d_name, d_cat, d_price, d_unit in dishes_data:
+                nutrition = guess_nutrition(d_name)
+                dish = Dish(
+                    window_id=window.id,
+                    name=d_name,
+                    category=d_cat,
+                    price=d_price,
+                    unit=d_unit,
+                    nutrition=nutrition,
+                    is_available=True,
+                    is_recommended=(d_price <= 10),
+                )
+                session.add(dish)
+                total_dishes += 1
+
+        await session.flush()
+        print(f"   [OK] 创建 {total_windows} 个窗口")
+        print(f"   [OK] 创建 {total_dishes} 个菜品")
+
+        # --- Sample Reviews ---
+        sample_reviews = [
+            (demo_user.id, "清芬园", "生煎包窗口", "生煎包（猪肉）", 5, "清芬生煎包全校最好吃！每次下课必买，皮薄底脆肉汁丰富", ["口味好", "排队快"]),
+            (demo_user.id, "清芬园", "生煎包窗口", "生煎包（虾仁）", 4, "虾仁生煎也超赞，能吃到整只虾仁", ["口味好"]),
+            (volunteer.id, "紫荆园", "涮羊肉窗口", "涮羊肉（小份）", 5, "20块钱的涮羊肉太值了！麻酱味道正宗，每次必吃", ["性价比高", "分量足"]),
+            (demo_user.id, "紫荆园", "甜品点心", "炸鲜奶", 5, "紫四炸鲜奶绝了！外酥里嫩，甜而不腻，网红单品当之无愧", ["口味好"]),
+            (demo_user.id, "听涛园", "陕西面食", "油泼面", 5, "听涛的油泼面是清华面食天花板！辣椒面浇热油，香迷糊了", ["口味好", "性价比高"]),
+            (volunteer.id, "丁香园", "广式肠粉", "鲜虾肠粉", 5, "早八排队王，肠粉皮薄如纸，虾仁新鲜弹牙", ["口味好", "排队慢"]),
+            (demo_user.id, "观畴园", "自选餐厅", "虎眼丸子", 4, "万人食堂的虎眼丸子很扎实，用料实在", ["分量足"]),
+            (volunteer.id, "桃李园", "夜宵窗口", "麻辣小龙虾", 4, "晚上九点后来的，夜宵氛围很好，小龙虾干净入味", ["口味好"]),
+            (demo_user.id, "芝兰园", "清青小火锅", "单人小火锅", 4, "38元小火锅吃到饱，冬天晚上来太幸福了", ["性价比高"]),
+            (volunteer.id, "清芬园", "北京烤鸭", "北京烤鸭（小份）", 5, "9元一盘的烤鸭，清华物价yyds！鸭皮酥脆蘸白糖绝配", ["性价比高", "口味好"]),
+            (demo_user.id, "紫荆园", "桂林米粉", "桂林米粉", 4, "紫三的桂林米粉很正宗，酸笋酸豆角够味", ["口味好"]),
+            (volunteer.id, "观畴园", "清青永和", "豆浆", 4, "早起看文献前必须来杯热豆浆，能量满满", ["口味好"]),
+        ]
+
+        for user_id, canteen_name, win_name, dish_name, rating, content, tags in sample_reviews:
+            # Find the window and dish IDs
+            for w in all_windows:
+                if w.name == win_name:
+                    window_id = w.id
+                    break
+            else:
+                continue
+
+            # Find dish
+            dish_q = select(Dish.id).where(Dish.name == dish_name, Dish.window_id == window_id).limit(1)
+            dish_r = await session.execute(dish_q)
+            dish_row = dish_r.scalar_one_or_none()
+            dish_id = dish_row
+
+            review = Review(
+                user_id=user_id,
+                window_id=window_id,
+                dish_id=dish_id,
+                rating=rating,
+                content=content,
+                tags=tags,
+                is_approved=True,
+            )
+            session.add(review)
+
+        # Update ratings
+        for window in all_windows:
+            avg_q = select(func.avg(Review.rating), func.count(Review.id)).where(
+                Review.window_id == window.id, Review.is_approved == True
+            )
+            r = await session.execute(avg_q)
+            avg_rating, count = r.one()
+            if count:
+                window.avg_rating = round(float(avg_rating), 1)
+                window.rating_count = count
+
+        await session.flush()
+        print(f"   [OK] 创建 {len(sample_reviews)} 条评价")
+
+        await session.commit()
+        print(f"\n种子数据写入完成!")
+        print(f"   - {len(CANTEENS)} 个食堂")
+        print(f"   - {total_windows} 个窗口")
+        print(f"   - {total_dishes} 个菜品")
+        print(f"   - {len(sample_reviews)} 条评价")
+
+
+if __name__ == "__main__":
+    asyncio.run(seed())

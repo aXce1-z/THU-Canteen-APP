@@ -1,0 +1,39 @@
+.stars-large {
+  display: flex;
+  gap: 8px;
+}
+
+.star-big {
+  font-size: 36px;
+  color: #ddd;
+}
+
+.star-big.active {
+  color: #F7BA2A;
+}
+
+.img-add {
+  width: 80px;
+  height: 80px;
+  border: 1px dashed #ccc;
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.img-remove {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 20px;
+  height: 20px;
+  background: #F56C6C;
+  color: #fff;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+}

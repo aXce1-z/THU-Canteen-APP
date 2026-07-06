@@ -1,0 +1,137 @@
+<view class="container">
+  <!-- 搜索栏 -->
+  <view class="search-bar">
+    <input
+      placeholder="搜索菜品、窗口..."
+      value="{{keyword}}"
+      bindinput="onInput"
+      bindconfirm="onSearch"
+      confirm-type="search"
+      focus="{{!hasSearched}}"
+    />
+    <text wx:if="{{keyword}}" bindtap="onClear" style="margin-right: 8px; color: #999">✕</text>
+    <text bindtap="onSearch" style="font-size: 18px">🔍</text>
+  </view>
+
+  <!-- 排序 -->
+  <view class="sort-bar" wx:if="{{hasSearched}}">
+    <text class="sort-item {{sortBy === 'relevance' ? 'active' : ''}}" bindtap="onSort" data-sort="relevance">综合</text>
+    <text class="sort-item {{sortBy === 'rating' ? 'active' : ''}}" bindtap="onSort" data-sort="rating">评分</text>
+    <text class="sort-item {{sortBy === 'price_asc' ? 'active' : ''}}" bindtap="onSort" data-sort="price_asc">价格↑</text>
+    <text class="sort-item {{sortBy === 'price_desc' ? 'active' : ''}}" bindtap="onSort" data-sort="price_desc">价格↓</text>
+  </view>
+
+  <!-- 搜索建议 -->
+  <view wx:if="{{suggestions.length > 0 && !hasSearched}}">
+    <view
+      wx:for="{{suggestions}}"
+      wx:key="*this"
+      class="suggestion-item"
+      bindtap="onTapSuggestion"
+      data-keyword="{{item}}"
+    >
+      <text>🔍</text>
+      <text style="margin-left: 8px">{{item}}</text>
+    </view>
+  </view>
+
+  <!-- 搜索历史 -->
+  <view wx:if="{{history.length > 0 && !hasSearched && suggestions.length === 0}}">
+    <view class="flex-between" style="margin: 12px 0">
+      <text class="text-bold">📝 搜索历史</text>
+      <text class="text-sm text-muted" bindtap="onClearHistory">清除</text>
+    </view>
+    <view class="flex-wrap">
+      <text
+        wx:for="{{history}}"
+        wx:key="*this"
+        class="history-tag"
+        bindtap="onTapHistory"
+        data-keyword="{{item}}"
+      >{{item}}</text>
+    </view>
+  </view>
+
+  <!-- 搜索结果 -->
+  <view wx:if="{{hasSearched && !searching}}">
+    <text class="text-sm text-muted" style="margin: 8px 0; display: block">
+      共找到 {{results.total_count || 0}} 个结果
+    </text>
+
+    <!-- 菜品结果 -->
+    <view wx:if="{{results.dishes.length > 0}}">
+      <text class="text-bold" style="margin: 12px 0 8px; display: block">🍲 菜品</text>
+      <view
+        wx:for="{{results.dishes}}"
+        wx:key="id"
+        class="card dish-result"
+        bindtap="onTapDish"
+        data-id="{{item.id}}"
+      >
+        <view class="flex-between">
+          <view style="flex: 1">
+            <text class="text-md text-bold">{{item.name}}</text>
+            <view style="margin-top: 2px">
+              <text class="text-sm text-muted">{{item.canteen_name}} · {{item.window_name}}</text>
+            </view>
+            <view wx:if="{{item.category}}" class="tag tag-default" style="margin-top: 4px">{{item.category}}</view>
+          </view>
+          <view style="text-align: right">
+            <text class="text-price text-lg">¥{{item.price}}</text>
+            <text class="text-sm text-muted">/{{item.unit}}</text>
+            <view wx:if="{{item.avg_rating}}" class="stars" style="margin-top: 4px; justify-content: flex-end">
+              <text class="star active">★</text>
+              <text>{{item.avg_rating}}</text>
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 窗口结果 -->
+    <view wx:if="{{results.windows.length > 0}}">
+      <text class="text-bold" style="margin: 12px 0 8px; display: block">🏪 窗口</text>
+      <view
+        wx:for="{{results.windows}}"
+        wx:key="id"
+        class="card"
+        bindtap="onTapWindow"
+        data-id="{{item.id}}"
+      >
+        <view class="flex-between">
+          <view>
+            <text class="text-md text-bold">{{item.name}}</text>
+            <text class="text-sm text-muted" style="margin-left: 6px">{{item.canteen_name}}</text>
+          </view>
+          <view class="stars">
+            <text class="star active">★</text>
+            <text>{{item.avg_rating || '-'}}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 食堂结果 -->
+    <view wx:if="{{results.canteens.length > 0}}">
+      <text class="text-bold" style="margin: 12px 0 8px; display: block">🏫 食堂</text>
+      <view
+        wx:for="{{results.canteens}}"
+        wx:key="id"
+        class="card"
+        bindtap="onTapWindow"
+        data-id="{{item.id}}"
+      >
+        <text class="text-md text-bold">{{item.name}}</text>
+        <text class="text-sm text-muted">{{item.window_count}}个窗口</text>
+      </view>
+    </view>
+
+    <view wx:if="{{results.total_count === 0}}" class="empty-state">
+      <text class="icon">🔍</text>
+      <text>没有找到相关结果</text>
+      <text class="text-sm text-muted">试试搜索其他关键词</text>
+    </view>
+  </view>
+
+  <view wx:if="{{searching}}" class="loading">搜索中...</view>
+</view>

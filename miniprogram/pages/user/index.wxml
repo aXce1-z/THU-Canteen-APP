@@ -1,0 +1,74 @@
+<view class="container">
+  <!-- 用户信息头 -->
+  <view class="card user-header">
+    <view wx:if="{{isLoggedIn}}" class="flex-row" style="gap: 12px">
+      <image wx:if="{{userInfo.avatar_url}}" src="{{userInfo.avatar_url}}" class="avatar" />
+      <view wx:else class="avatar-placeholder">👤</view>
+      <view>
+        <text class="text-lg text-bold">{{userInfo.nickname || '清华同学'}}</text>
+        <view class="text-sm text-muted" style="margin-top: 2px">
+          <text wx:if="{{userInfo.role === 'volunteer'}}">🏅 志愿者</text>
+          <text wx:elif="{{userInfo.role === 'admin'}}">🔧 管理员</text>
+          <text wx:else>📚 清华学生</text>
+        </view>
+        <text wx:if="{{userInfo.contribution_points}}" class="text-sm text-warning">
+          ⭐ {{userInfo.contribution_points}} 贡献积分
+        </text>
+      </view>
+    </view>
+    <view wx:else class="flex-row" style="gap: 12px">
+      <view class="avatar-placeholder">👤</view>
+      <view>
+        <text class="text-lg">点击登录</text>
+        <text class="text-sm text-muted" style="display: block">登录后可发表评价</text>
+      </view>
+      <button size="mini" bindtap="onLogin" style="margin-left: auto; background: var(--primary); color: #fff">登录</button>
+    </view>
+  </view>
+
+  <!-- 收藏 -->
+  <view class="card" style="margin-top: 16px">
+    <view class="flex-between" style="margin-bottom: 12px">
+      <text class="text-bold">⭐ 我的收藏</text>
+      <text wx:if="{{favorites.length > 0}}" class="text-sm text-muted" bindtap="onClearFavorites">清除</text>
+    </view>
+
+    <view wx:if="{{favorites.length > 0}}">
+      <view
+        wx:for="{{favorites}}"
+        wx:key="id"
+        class="flex-between"
+        style="padding: 10px 0; border-bottom: 1px solid #f5f5f5"
+        bindtap="onTapFavorite"
+        data-type="{{item.type}}"
+        data-id="{{item.id}}"
+        data-name="{{item.name}}"
+      >
+        <view class="flex-row" style="gap: 8px">
+          <text>{{item.type === 'canteen' ? '🏫' : item.type === 'window' ? '🏪' : '🍲'}}</text>
+          <text>{{item.name}}</text>
+        </view>
+        <text class="text-muted">→</text>
+      </view>
+    </view>
+    <view wx:else class="text-sm text-muted" style="text-align: center; padding: 20px 0">
+      还没有收藏，去首页看看吧
+    </view>
+  </view>
+
+  <!-- 功能区 -->
+  <view class="card" style="margin-top: 16px">
+    <view class="menu-item">
+      <text>📝 我的评价</text>
+      <text class="text-muted">→</text>
+    </view>
+    <view class="menu-item">
+      <text>🏅 贡献记录</text>
+      <text class="text-muted">→</text>
+    </view>
+    <view class="menu-item" bindtap="onAbout">
+      <text>ℹ️ 关于</text>
+      <text class="text-muted">v1.0 →</text>
+    </view>
+  </view>
+</view>

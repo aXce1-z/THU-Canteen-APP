@@ -1,0 +1,77 @@
+<skeleton wx:if="{{loading}}" count="3" />
+
+<view class="container" wx:elif="{{canteen}}">
+  <!-- 食堂信息头 -->
+  <view class="card">
+    <view class="flex-between">
+      <view>
+        <text class="text-xl text-bold">{{canteen.name}}</text>
+        <view class="text-sm text-muted" style="margin-top: 4px">📍 {{canteen.location || '清华大学'}}</view>
+      </view>
+      <text style="font-size: 24px" bindtap="onToggleFavorite">⭐</text>
+    </view>
+    <!-- 营业时间 -->
+    <view wx:if="{{canteen.opening_hours}}" style="margin-top: 12px">
+      <view wx:for="{{canteen.opening_hours}}" wx:key="*this" wx:for-item="time" wx:for-index="key" class="text-sm" style="margin-top: 2px">
+        🕐 {{key}}: {{time}}
+      </view>
+    </view>
+    <text wx:if="{{canteen.description}}" class="text-sm text-muted" style="margin-top: 8px; display: block">
+      {{canteen.description}}
+    </text>
+  </view>
+
+  <!-- 分类筛选 -->
+  <scroll-view scroll-x class="category-filter" style="margin-bottom: 12px">
+    <view class="filter-tag {{activeFilter === '' ? 'active' : ''}}" bindtap="onFilter" data-category="">全部</view>
+    <view
+      wx:for="{{['自选餐', '盖浇饭', '面食', '小吃', '饮品', '套餐', '麻辣烫', '其他']}}"
+      wx:key="*this"
+      class="filter-tag {{activeFilter === item ? 'active' : ''}}"
+      bindtap="onFilter"
+      data-category="{{item}}"
+    >{{item}}</view>
+  </scroll-view>
+
+  <!-- 窗口列表 -->
+  <view wx:if="{{filteredWindows.length > 0}}">
+    <view
+      wx:for="{{filteredWindows}}"
+      wx:key="id"
+      class="card window-card"
+      bindtap="onTapWindow"
+      data-id="{{item.id}}"
+      data-name="{{item.name}}"
+    >
+      <view class="flex-between">
+        <view style="flex: 1">
+          <view class="flex-row" style="gap: 8px">
+            <text class="text-lg text-bold">{{item.name}}</text>
+            <text wx:if="{{item.window_number}}" class="text-sm text-muted">{{item.window_number}}号</text>
+          </view>
+          <view style="margin-top: 6px">
+            <text wx:if="{{item.category}}" class="tag tag-info">{{item.category}}</text>
+            <text
+              wx:for="{{item.payment_methods}}"
+              wx:key="*this"
+              class="payment-tag payment-{{item === 'wechat' ? 'wechat' : item === 'alipay' ? 'alipay' : 'card'}}"
+            >{{item === 'campus_card' ? '校园卡' : item === 'wechat' ? '微信' : '支付宝'}}</text>
+          </view>
+        </view>
+        <view style="text-align: right">
+          <view class="stars">
+            <text class="text-warning" style="font-size: 14px">★</text>
+            <text class="text-bold">{{item.avg_rating || '-'}}</text>
+            <text class="text-sm text-muted">({{item.rating_count}})</text>
+          </view>
+          <text class="text-sm text-muted">{{item.dish_count}}个菜品</text>
+        </view>
+      </view>
+    </view>
+  </view>
+  <view wx:else class="empty-state">
+    <text class="icon">🍽️</text>
+    <text>暂无窗口数据</text>
+  </view>
+</view>
+
