@@ -1,12 +1,47 @@
 """
 基于 SQLite FTS5 + jieba 的全文搜索引擎
-支持中文分词、拼音搜索、模糊匹配
+支持中文分词、同义词扩展、模糊匹配
 """
 import os
 import sqlite3
 from typing import Optional
 
 import jieba
+
+# 同义词映射 (搜索时自动扩展)
+SYNONYMS = {
+    "西红柿": ["番茄", "西红柿"],
+    "番茄": ["西红柿", "番茄"],
+    "土豆": ["土豆", "马铃薯", "洋芋"],
+    "马铃薯": ["土豆", "马铃薯", "洋芋"],
+    "洋芋": ["土豆", "马铃薯", "洋芋"],
+    "鸡蛋": ["鸡蛋", "蛋"],
+    "蛋炒饭": ["蛋炒饭", "炒饭"],
+    "生煎": ["生煎", "煎包", "生煎包"],
+    "煎包": ["生煎", "煎包", "生煎包"],
+    "包子": ["包子", "包", "小笼包"],
+    "饺子": ["饺子", "水饺", "饺"],
+    "面条": ["面条", "面"],
+    "米饭": ["米饭", "饭"],
+    "红薯": ["红薯", "地瓜", "番薯"],
+    "米粉": ["米粉", "米线", "粉"],
+    "馄饨": ["馄饨", "抄手", "云吞"],
+    "抄手": ["馄饨", "抄手", "云吞"],
+    "猪": ["猪", "猪肉"],
+    "牛": ["牛", "牛肉"],
+    "鸡": ["鸡", "鸡肉"],
+    "鱼": ["鱼", "鱼肉"],
+}
+
+
+def _expand_query(query: str) -> str:
+    """扩展查询词：将同义词加入搜索"""
+    words = list(jieba.cut(query))
+    expanded = set(words)
+    for w in words:
+        if w in SYNONYMS:
+            expanded.update(SYNONYMS[w])
+    return " OR ".join(expanded)
 
 # 数据库路径（与 async 数据库相同文件）
 DB_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "thucanteen.db")
@@ -72,9 +107,8 @@ def search(query: str, canteen_id: Optional[str] = None,
         if not tables:
             return []
 
-        # jieba 分词查询
-        tokens = list(jieba.cut(query))
-        fts_query = " OR ".join(tokens)
+        # jieba 分词 + 同义词扩展
+        fts_query = _expand_query(query)
 
         conditions = ["dish_fts MATCH ?"]
         params = [fts_query]

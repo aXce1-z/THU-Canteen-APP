@@ -1,6 +1,6 @@
 App({
   globalData: {
-    apiBase: 'http://localhost:8000/api',
+    apiBase: 'http://192.168.31.62:8000/api',  // 真机调试用；模拟器改回 localhost
     userInfo: null,
     token: null,
     history: [], // 搜索历史

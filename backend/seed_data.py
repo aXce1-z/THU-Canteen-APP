@@ -664,132 +664,31 @@ EXACT_NUTRITION = {
 
 
 def guess_nutrition(dish_name):
-    """基于菜品名关键词 + 食材 + 烹饪方式智能估算营养成分"""
+    """基于 LLM 精算的营养数据库 + 食材推断"""
+    from app.routers.nutrition import LLM_NUTRITION_DB, _infer_from_ingredients
+    import re
+
     # 1. 精确匹配
-    if dish_name in EXACT_NUTRITION:
-        return EXACT_NUTRITION[dish_name]
+    if dish_name in LLM_NUTRITION_DB:
+        return LLM_NUTRITION_DB[dish_name]
 
-    # 2. 模糊匹配: 尝试去掉括号/单位
-    cleaned = dish_name.replace("（", "(").replace("）", ")")
-    base_name = cleaned.split("(")[0].strip()
-    if base_name in EXACT_NUTRITION:
-        return EXACT_NUTRITION[base_name]
+    # 2. 去掉括号后匹配
+    cleaned = re.sub(r'[（(][^)）]*[)）]', '', dish_name).strip()
+    if cleaned in LLM_NUTRITION_DB:
+        return LLM_NUTRITION_DB[cleaned]
 
-    # 3. 基于食材+烹饪方式的关键词匹配
-    result = {"calories": 0, "protein": 0, "fat": 0, "carbs": 0, "fiber": 0, "sodium": 0}
+    # 3. 模糊匹配 LLM 数据库
+    best, best_overlap = None, 0
+    for key in LLM_NUTRITION_DB:
+        overlap = len(set(key) & set(dish_name)) / max(len(key), 1)
+        if overlap > best_overlap and overlap > 0.5:
+            best_overlap = overlap
+            best = key
+    if best:
+        return LLM_NUTRITION_DB[best]
 
-    # 估算份量系数 (食堂一份约300-500g)
-    portion = 3.5  # 平均350g
-
-    # 检测主食
-    if any(k in dish_name for k in ["饭", "米线", "面", "粉", "意面"]):
-        if "饭" in dish_name:
-            result["calories"] += 116 * portion * 0.4
-            result["carbs"] += 25.9 * portion * 0.4
-            result["protein"] += 2.6 * portion * 0.4
-        if "面" in dish_name or "粉" in dish_name or "米线" in dish_name:
-            result["calories"] += 284 * portion * 0.35
-            result["carbs"] += 61.9 * portion * 0.35
-            result["protein"] += 8.3 * portion * 0.35
-
-    # 检测肉类
-    if any(k in dish_name for k in ["牛肉", "牛腩"]):
-        result["calories"] += 125 * portion * 0.25
-        result["protein"] += 19.9 * portion * 0.25
-        result["fat"] += 4.2 * portion * 0.25
-    elif any(k in dish_name for k in ["猪肉", "猪", "叉烧", "排骨", "蹄花", "肘子"]):
-        result["calories"] += 395 * portion * 0.2
-        result["protein"] += 13.2 * portion * 0.2
-        result["fat"] += 37.0 * portion * 0.2
-    elif "鸡" in dish_name:
-        result["calories"] += 167 * portion * 0.25
-        result["protein"] += 19.3 * portion * 0.25
-        result["fat"] += 9.4 * portion * 0.25
-    elif "羊" in dish_name:
-        result["calories"] += 203 * portion * 0.25
-        result["protein"] += 19.0 * portion * 0.25
-        result["fat"] += 14.1 * portion * 0.25
-    elif any(k in dish_name for k in ["鱼", "鳕鱼", "鲈鱼", "鳜鱼"]):
-        result["calories"] += 113 * portion * 0.3
-        result["protein"] += 18.0 * portion * 0.3
-        result["fat"] += 4.0 * portion * 0.3
-    elif "虾" in dish_name:
-        result["calories"] += 87 * portion * 0.25
-        result["protein"] += 18.6 * portion * 0.25
-        result["fat"] += 0.8 * portion * 0.25
-
-    # 检测豆腐/蔬菜
-    if "豆腐" in dish_name:
-        result["calories"] += 76 * portion * 0.3
-        result["protein"] += 8.1 * portion * 0.3
-        result["fat"] += 3.7 * portion * 0.3
-    if any(k in dish_name for k in ["蔬菜", "时蔬", "青菜", "包菜"]):
-        result["calories"] += 32 * portion * 0.3
-        result["fiber"] += 1.5 * portion * 0.3
-    if "蛋" in dish_name or "鸡蛋" in dish_name:
-        result["calories"] += 144 * 1.5
-        result["protein"] += 13.3 * 1.5
-        result["fat"] += 8.8 * 1.5
-
-    # 检测烹饪方式加成
-    if any(k in dish_name for k in ["红烧", "烧", "焖"]):
-        result["calories"] += 80
-        result["fat"] += 5.0
-        result["sodium"] += 400
-    if any(k in dish_name for k in ["炸", "酥"]):
-        result["calories"] += 150
-        result["fat"] += 15.0
-    if any(k in dish_name for k in ["麻辣", "辣", "香锅", "冒菜"]):
-        result["calories"] += 50
-        result["fat"] += 4.0
-        result["sodium"] += 300
-
-    # 如果没有主食且没有肉类 (小吃/饮品)
-    if result["calories"] == 0:
-        if any(k in dish_name for k in ["咖啡", "奶茶", "茶", "豆浆", "梨汤", "可乐", "果汁"]):
-            result["calories"] = 80
-            result["carbs"] = 15.0
-        elif any(k in dish_name for k in ["甜", "糕", "酥", "面包", "饼", "挞"]):
-            result["calories"] = 200
-            result["carbs"] = 30.0
-            result["fat"] = 8.0
-        elif "汤" in dish_name:
-            result["calories"] = 80
-            result["protein"] = 4.0
-            result["sodium"] = 300
-        elif "肠粉" in dish_name:
-            result["calories"] = 200
-            result["protein"] = 6.0
-            result["fat"] = 6.0
-            result["carbs"] = 30.0
-            result["sodium"] = 350
-        elif any(k in dish_name for k in ["酱", "熟食", "卤"]):
-            result["calories"] = 250
-            result["protein"] = 24.0
-            result["fat"] = 16.0
-            result["sodium"] = 600
-        elif "年糕" in dish_name:
-            result["calories"] = 220
-            result["carbs"] = 42.0
-        else:
-            # default fallback: a typical dish
-            result["calories"] = 200
-            result["protein"] = 10.0
-            result["fat"] = 10.0
-            result["carbs"] = 18.0
-            result["sodium"] = 300
-    else:
-        # Round values
-        for k in result:
-            result[k] = round(result[k])
-
-    # Ensure fiber and sodium have defaults
-    if result["fiber"] == 0:
-        result["fiber"] = 1.0
-    if result["sodium"] == 0:
-        result["sodium"] = 350
-
-    return result
+    # 4. 回退到食材推断
+    return _infer_from_ingredients(dish_name)
 
 
 # ============================================================
