@@ -736,7 +736,7 @@ async def seed():
                 category=category,
                 payment_methods=payments,
                 is_active=True,
-                description=f"{canteen_name} {floor}",
+                description=f"{'地下' if floor=='B1' else floor.replace('F','层')} · {canteen_name}",
             )
             session.add(window)
             all_windows.append(window)

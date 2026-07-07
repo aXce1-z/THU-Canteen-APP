@@ -7,6 +7,7 @@ Page({
     filteredWindows: [],
     activeFilter: '',
     loading: true,
+    isFav: false,
   },
 
   onLoad(options) {
@@ -27,10 +28,12 @@ Page({
         getCanteen(this.canteenId),
         getCanteenWindows(this.canteenId, { page_size: 100 }),
       ])
+      const app = getApp()
       this.setData({
         canteen,
         windows: winRes.items || [],
         filteredWindows: winRes.items || [],
+        isFav: app.isFavorite('canteen', this.canteenId),
       })
     } catch (e) {
       console.error('加载失败', e)
@@ -70,6 +73,7 @@ Page({
   onToggleFavorite() {
     const app = getApp()
     const added = app.toggleFavorite('canteen', this.data.canteen.id, this.data.canteen.name)
+    this.setData({ isFav: added })
     wx.showToast({ title: added ? '已收藏' : '已取消', icon: 'none' })
   },
 })
