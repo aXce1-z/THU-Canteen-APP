@@ -51,11 +51,11 @@
           </view>
           <view style="margin-top: 6px">
             <text wx:if="{{item.category}}" class="tag tag-info">{{item.category}}</text>
-            <text
+            <view
               wx:for="{{item.payment_methods}}"
               wx:key="*this"
               class="payment-tag payment-{{item === 'wechat' ? 'wechat' : item === 'alipay' ? 'alipay' : 'card'}}"
-            >{{item === 'campus_card' ? '校园卡' : item === 'wechat' ? '微信' : '支付宝'}}</text>
+            >{{item === 'campus_card' ? '校园卡' : item === 'wechat' ? '微信' : '支付宝'}}</view>
           </view>
         </view>
         <view style="text-align: right">

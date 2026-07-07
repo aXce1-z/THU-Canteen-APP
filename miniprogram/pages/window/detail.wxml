@@ -26,10 +26,10 @@
       </view>
 
       <view style="margin-top:10px">
-        <text wx:for="{{window.payment_methods}}" wx:key="*this"
+        <view wx:for="{{window.payment_methods}}" wx:key="*this"
           class="payment-tag payment-{{item==='wechat'?'wechat':item==='alipay'?'alipay':'card'}}">
           {{item==='campus_card'?'校园卡':item==='wechat'?'微信':'支付宝'}}
-        </text>
+        </view>
       </view>
     </view>
 
