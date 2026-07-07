@@ -157,25 +157,30 @@ page {
 
 /* 支付方式标签 */
 .payment-tag {
-  display: inline-block;
-  padding: 1px 6px;
-  border-radius: 3px;
-  font-size: 10px;
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
   margin-right: 4px;
+  line-height: 1.4;
   border: 1px solid;
 }
 
 .payment-card {
-  color: #409EFF;
-  border-color: #409EFF;
+  color: #6B2F8B;
+  border-color: #6B2F8B;
+  background: #f8f4ff;
 }
 
 .payment-wechat {
-  color: #67C23A;
+  color: #388E3C;
   border-color: #67C23A;
+  background: #f0f9f0;
 }
 
 .payment-alipay {
-  color: #1677FF;
+  color: #1565C0;
   border-color: #1677FF;
+  background: #e8f4fd;
 }
